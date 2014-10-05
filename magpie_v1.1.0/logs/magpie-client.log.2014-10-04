@@ -1,0 +1,15 @@
+2014-09-29 12:59:56 CommonCommand [INFO] Nimbus: nimbus-0000000006
+2014-09-29 12:59:56 CommonCommand [INFO] killed successfully!
+2014-09-29 12:59:56 ZkUtils [INFO] Zookeeper Client will be closed!
+2014-09-29 13:00:29 LaunchCommand [INFO] Nimbus: nimbus-0000000006
+2014-09-29 13:00:29 LaunchCommand [INFO] This task will be submit soon! (topology id='magpie-test', jar='magpie-test-1.0-SNAPSHOT-standalone.jar', class='com.jd.bdp.magpie.test.MainExecutor')
+2014-09-29 13:00:29 ZkUtils [INFO] Zookeeper Client will be closed!
+2014-09-29 13:01:13 CommonCommand [INFO] Nimbus: nimbus-0000000006
+2014-09-29 13:01:13 CommonCommand [INFO] killed successfully!
+2014-09-29 13:01:13 ZkUtils [INFO] Zookeeper Client will be closed!
+2014-10-04 23:36:11 CommonCommand [INFO] Nimbus: nimbus-0000000004
+2014-10-04 23:36:11 CommonCommand [INFO] killed successfully!
+2014-10-04 23:36:11 ZkUtils [INFO] Zookeeper Client will be closed!
+2014-10-04 23:36:59 LaunchCommand [INFO] Nimbus: nimbus-0000000004
+2014-10-04 23:36:59 LaunchCommand [INFO] This task will be submit soon! (topology id='magpie-test', jar='magpie.jar', class='com.test.magpie')
+2014-10-04 23:36:59 ZkUtils [INFO] Zookeeper Client will be closed!

@@ -1,0 +1,27 @@
+nimbus.thrift.port: 6666
+magpie.zookeeper.servers:
+ - 172.22.178.86
+ - 172.22.178.87
+ - 172.22.178.88
+ - 172.22.178.89
+ - 172.22.178.90
+magpie.zookeeper.port: 2181
+magpie.zookeeper.root: /magpie_test
+magpie.zookeeper.connection.timeout.millis: 15000
+magpie.zookeeper.session.timeout.millis: 20000
+magpie.zookeeper.retry.interval.millis: 1000
+magpie.zookeeper.retry.times: 5
+magpie.zookeeper.retry.intervalceiling.millis: 30000
+
+magpie.floor.score: 256
+magpie.jars.dir: /data0/data/magpie/jars
+magpie.pids.dir: /data0/data/magpie/pids
+magpie.logs.dir: /data0/data/magpie/logs
+magpie.heartbeat.interval.millis: 1000
+magpie.schedule.interval.millis: 1000
+magpie.schedule.timeout.millis: 60000
+
+magpie.worker.childopts: "-Xmx768m"
+
+magpie.supervisor.group: "default"
+magpie.supervisor.type:  "memory"

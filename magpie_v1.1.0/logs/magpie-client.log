@@ -1,0 +1,6 @@
+2014-10-05 00:26:22 LaunchCommand [INFO] Nimbus: nimbus-0000000004
+2014-10-05 00:26:22 LaunchCommand [INFO] This task has already been running! Will be reloaded! (topology id='magpie-test', jar='magpie.jar', class='com.test.magpie')
+2014-10-05 00:26:22 ZkUtils [INFO] Zookeeper Client will be closed!
+2014-10-05 00:29:30 LaunchCommand [INFO] Nimbus: nimbus-0000000004
+2014-10-05 00:29:30 LaunchCommand [INFO] This task has already been running! Will be reloaded! (topology id='magpie-test', jar='magpie.jar', class='com.test.magpie')
+2014-10-05 00:29:30 ZkUtils [INFO] Zookeeper Client will be closed!

@@ -1,0 +1,30 @@
+2014-09-29 13:00:20 zookeeper [INFO] Zookeeper state update:  :connected :none nil
+2014-09-29 13:00:20 supervisor [INFO] Starting supervisor...
+2014-09-29 13:00:31 utils [INFO] error accurs in downloading jar, exception: #<NullPointerException java.lang.NullPointerException>
+2014-09-29 13:01:31 supervisor [ERROR] start job timeout...(topology id=' magpie-test ', jar=' magpie-test-1.0-SNAPSHOT-standalone.jar ', class=' com.jd.bdp.magpie.test.MainExecutor ')
+2014-09-29 13:01:31 supervisor [INFO] command:  java -server -Xmx768m -Djava.library.path= -Dlog4j.configuration=worker.log4j.properties -Dpids.dir=/tmp/magpie/pids/magpie-test -Dlogs.dir=/tmp/magpie/logs -Dlogfile.name=worker-magpie-test -Djob.node=magpie-test -Dzookeeper.servers=127.0.0.1:2181 -Dzookeeper.root=/magpie -Djob.id=magpie-test -cp /Users/phoenix/Workspace/magpie/magpie-nest/magpie/magpie_v1.1.0/bin/../conf:/tmp/magpie/jars/magpie-test-1.0-SNAPSHOT-standalone.jar com.jd.bdp.magpie.test.MainExecutor
+2014-09-29 18:13:21 zookeeper [INFO] Zookeeper state update:  :disconnected :none nil
+2014-09-29 18:13:23 zookeeper [INFO] Zookeeper state update:  :expired :none nil
+2014-09-29 18:13:23 zookeeper [INFO] Zookeeper state update:  :connected :none nil
+2014-09-29 18:13:23 supervisor [ERROR] error accurs in supervisor heartbeat timer..
+java.lang.RuntimeException: org.apache.zookeeper.KeeperException$NoNodeException: KeeperErrorCode = NoNode for /supervisors/localhost-dbef227d-bcbd-41ca-bd29-9762500c60e5
+	at com.jd.magpie.util.utils$wrap_in_runtime.invoke(utils.clj:65)
+	at com.jd.magpie.util.zookeeper$set_data.invoke(zookeeper.clj:129)
+	at com.jd.magpie.daemon.supervisor$launch_server_BANG_$fn__3499.invoke(supervisor.clj:168)
+	at com.jd.magpie.util.timer$schedule_recurring$this__3337.invoke(timer.clj:75)
+	at com.jd.magpie.util.timer$mk_timer$fn__3319$fn__3320.invoke(timer.clj:31)
+	at com.jd.magpie.util.timer$mk_timer$fn__3319.invoke(timer.clj:24)
+	at clojure.lang.AFn.run(AFn.java:24)
+	at java.lang.Thread.run(Thread.java:722)
+Caused by: org.apache.zookeeper.KeeperException$NoNodeException: KeeperErrorCode = NoNode for /supervisors/localhost-dbef227d-bcbd-41ca-bd29-9762500c60e5
+	at org.apache.zookeeper.KeeperException.create(KeeperException.java:111)
+	at org.apache.zookeeper.KeeperException.create(KeeperException.java:51)
+	at org.apache.zookeeper.ZooKeeper.setData(ZooKeeper.java:1266)
+	at org.apache.curator.framework.imps.SetDataBuilderImpl$4.call(SetDataBuilderImpl.java:260)
+	at org.apache.curator.framework.imps.SetDataBuilderImpl$4.call(SetDataBuilderImpl.java:256)
+	at org.apache.curator.RetryLoop.callWithRetry(RetryLoop.java:107)
+	at org.apache.curator.framework.imps.SetDataBuilderImpl.pathInForeground(SetDataBuilderImpl.java:252)
+	at org.apache.curator.framework.imps.SetDataBuilderImpl.forPath(SetDataBuilderImpl.java:239)
+	at org.apache.curator.framework.imps.SetDataBuilderImpl.forPath(SetDataBuilderImpl.java:39)
+	at com.jd.magpie.util.zookeeper$set_data.invoke(zookeeper.clj:128)
+	... 6 more
