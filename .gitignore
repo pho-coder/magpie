@@ -5,3 +5,4 @@ pom.xml
 /target/
 *.tar.gz
 .lein-deps-sum
+logs/
