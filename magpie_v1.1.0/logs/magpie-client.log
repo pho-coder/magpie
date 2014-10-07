@@ -1,4 +1,0 @@
-2014-10-06 20:45:31 LaunchCommand [INFO] Nimbus: nimbus-0000000000
-2014-10-06 20:45:31 LaunchCommand [INFO] This task will be submit soon! (topology id='magpie-test', jar='magpie.jar', class='com.test.magpie')
-2014-10-06 20:45:31 ZkUtils [INFO] Zookeeper Client will be closed!
-2014-10-06 20:54:02 LaunchCommand [INFO] There isn't any nimbus running now! Please try it later..
