@@ -3,16 +3,17 @@
   :url "http://example.com/FIXME"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
-  :repositories [["locals" "http://192.168.137.123/nexus/content/repositories/central/"]
-                                                         ["jd-libs" "http://10.10.224.102:8081/libs-releases"]
-                                                         ["jd-plugin" "http://10.10.224.102:8081/plugins-releases"]
-                                                         ["jd-lib-snapshot" "http://10.10.224.102:8081/libs-snapshots"]
-                                                         ["jd-plugin-snapshot" "http://10.10.224.102:8081/plugins-snapshots"]
+  :repositories [
+                 ["locals" "http://192.168.137.123/nexus/content/repositories/central/"]
+                 ["jd-libs" "http://10.10.224.102:8081/libs-releases"]
+                 ["jd-plugin" "http://10.10.224.102:8081/plugins-releases"]
+                 ["jd-lib-snapshot" "http://10.10.224.102:8081/libs-snapshots"]
+                 ["jd-plugin-snapshot" "http://10.10.224.102:8081/plugins-snapshots"]
                  ["apache.snapshots" "http://repository.apache.org/content/repositories/snapshots/"]
                  ["sonatype" {:url "http://oss.sonatype.org/content/repositories/releases"
                               :releases {:checksum :fail :update :always}}]
                  ["cloudera" "https://repository.cloudera.com/artifactory/cloudera-repos"]]
-  :dependencies [[org.clojure/clojure "1.5.1"]
+  :dependencies [[org.clojure/clojure "1.6.0"]
                  [org.clojure/tools.cli "0.3.0"]
 		 [clj-http "0.9.2"]
                  [commons-io "2.4"]
@@ -20,8 +21,8 @@
                  [org.clojure/tools.logging "0.2.6"]
                  [org.yaml/snakeyaml "1.11"]
                  [org.apache.thrift/libthrift "0.9.1"]
-                 [org.apache.zookeeper/zookeeper "3.4.5"]
-                 [org.apache.curator/curator-framework "2.3.0"]
+;;                 [org.apache.zookeeper/zookeeper "3.4.6"]
+                 [org.apache.curator/curator-framework "2.6.0"]
                  [org.slf4j/slf4j-api "1.7.5"]
                  [org.slf4j/slf4j-log4j12 "1.7.5"]
                  [sigmund/sigmund "0.1.1"]
