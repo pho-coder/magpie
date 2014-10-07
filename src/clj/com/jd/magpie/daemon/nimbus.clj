@@ -16,20 +16,28 @@
 
 (defn get-all-supervisors [zk-handler supervisor-path group]
   (let [supervisors (zookeeper/get-children zk-handler supervisor-path false)
-        supervisor-infos (map #(utils/bytes->map (zookeeper/get-data zk-handler (str supervisor-path "/" %) false)) supervisors)]
+        supervisor-infos (map #(utils/bytes->map (zookeeper/get-data zk-handler (str supervisor-path "/" %) false)) supervisors)
+        supervisors-of-the-group (filter #(if (nil? %) false true) (map (fn [x y] (if (= (get y "group") group)
+                                                                                   [x y]
+                                                                                   nil)) supervisors supervisor-infos))]
     (log/debug "supervisor info:" supervisor-infos)
-    [supervisors supervisor-infos]))
+    (log/debug "supervisors of the group:" supervisors-of-the-group)
+    [(map #(first %) supervisors-of-the-group) (map #(second %) supervisors-of-the-group)]))
 
 (defn get-best [zk-handler supervisor-path group type]
   (let [[supervisors supervisor-infos] (get-all-supervisors zk-handler supervisor-path group)]
     (if (empty? supervisors)
       nil
       (if (= (count supervisors) 1)
-        [(first supervisors) (get (first supervisor-infos) "free-memory")]
+        [(first supervisors) (get (first supervisor-infos) (case type
+                                                             "memory" "free-memory"
+                                                             "free-memory"))]
         (reduce (fn [a b] (if (> (second a) (second b))
                            a
                            b))
-                (map (fn [s i] [s (get i "free-memory")]) supervisors supervisor-infos))))))
+                (map (fn [s i] [s (get i (case type
+                                          "memory" "free-memory"
+                                          "free-memory"))]) supervisors supervisor-infos))))))
 
 (defn assign [zk-handler id jar klass group type floor-score & {:keys [last-supervisor]}]
   (let [supervisor-path "/supervisors"
@@ -40,7 +48,7 @@
     (if-let [[best-supervisor score] (get-best zk-handler supervisor-path group type)]
       (if (> score floor-score)
         (do (zookeeper/set-data zk-handler (str command-path "/" node) (utils/object->bytes {"command" "run" "time" (utils/current-time-millis)}))
-            (zookeeper/set-data zk-handler task-path (utils/object->bytes {"start-time" (utils/current-time-millis) "jar" jar "class" klass "id" id "supervisor" best-supervisor "last-supervisor" last-supervisor}))
+            (zookeeper/set-data zk-handler task-path (utils/object->bytes {"start-time" (utils/current-time-millis) "jar" jar "class" klass "id" id "group" group "type" type "supervisor" best-supervisor "last-supervisor" last-supervisor}))
             (log/info "submit task successfully, (topology id='" id "')"))
         (do (zookeeper/set-data zk-handler (str command-path "/" node) (utils/object->bytes {"command" "wait" "time" (utils/current-time-millis)}))
             (log/warn "resource not enough, this task will be waiting. (topology id='" id "')")))
@@ -82,7 +90,7 @@
                         (reset! result (str "This task has already been running! Will be reloaded! (topology id='" id "', jar='" jar "', class='" klass "')")))
                     (reset! result (str "This task has already been running! current command='" command "' (topology id='" id "', jar='" jar "', class='" klass "')")))
                   (log/warn @result))
-                (do (zookeeper/create-node zk-handler (str assignment-path "/" node) (utils/object->bytes {"start-time" (utils/current-time-millis) "jar" jar "class" klass "id" id}))
+                (do (zookeeper/create-node zk-handler (str assignment-path "/" node) (utils/object->bytes {"start-time" (utils/current-time-millis) "jar" jar "class" klass "id" id "group" group "type" type}))
                     (zookeeper/create-node zk-handler (str command-path "/" node) (utils/object->bytes {"command" "init" "time" (utils/current-time-millis)}))
                     (zookeeper/create-node zk-handler (str status-path "/" node) (utils/object->bytes {"command" "init" "time" (utils/current-time-millis)}))
                     (assign zk-handler id jar klass group type floor-score)
@@ -195,7 +203,7 @@
     (log/info "nimbus zookeeper node: " nimbus-node)
     (loop [childs# (zookeeper/get-children zk-handler nimbus-path false)]
       (let [childs (.toArray childs#)
-a            _ (doall (Arrays/sort childs))]
+            _ (doall (Arrays/sort childs))]
         (when-not (= (str nimbus-path "/" (first childs)) nimbus-node)
           (Thread/sleep 5000)
           (recur (zookeeper/get-children zk-handler nimbus-path false)))))
