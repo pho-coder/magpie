@@ -68,15 +68,12 @@
       (zookeeper/delete-node zk-handler (str status-path "/" node))
       (catch Exception e))))
 
-(defn service-handler [conf zk-handler]
+(defn submit-task [conf zk-handler id jar klass group type]
   (let [assignment-path "/assignments"
         status-path "/status"
         command-path "/commands"
-        floor-score (conf MAGPIE-FLOOR-SCORE 256)]
-    (reify Nimbus$Iface
-      (^String submitTopology
-        [this ^String id ^String jar ^String klass ^String group ^String type]
-        (let [result (atom "submit failure!")]
+        floor-score (conf MAGPIE-FLOOR-SCORE 256)
+        result (atom "submit failure!")]
           (try
             (let [node id
                   task-path (str assignment-path "/" node)
@@ -87,18 +84,33 @@
                       command (command-info "command")]
                   (if (= command "run")
                     (do (zookeeper/set-data zk-handler (str command-path "/" node) (utils/object->bytes {"command" "reload" "time" (utils/current-time-millis)}))
-                        (reset! result (str "This task has already been running! Will be reloaded! (topology id='" id "', jar='" jar "', class='" klass "')")))
-                    (reset! result (str "This task has already been running! current command='" command "' (topology id='" id "', jar='" jar "', class='" klass "')")))
+                        (reset! result (str "This task has already been running! Will be reloaded! (job id='" id "', jar='" jar "', class='" klass "', group='" group "', type=" type "')")))
+                    (reset! result (str "This task has already been running! current command='" command "' (job id='" id "', jar='" jar "', class='" klass "', group='" group "', type=" type "')")))
                   (log/warn @result))
                 (do (zookeeper/create-node zk-handler (str assignment-path "/" node) (utils/object->bytes {"start-time" (utils/current-time-millis) "jar" jar "class" klass "id" id "group" group "type" type}))
                     (zookeeper/create-node zk-handler (str command-path "/" node) (utils/object->bytes {"command" "init" "time" (utils/current-time-millis)}))
                     (zookeeper/create-node zk-handler (str status-path "/" node) (utils/object->bytes {"command" "init" "time" (utils/current-time-millis)}))
                     (assign zk-handler id jar klass group type floor-score)
-                    (reset! result (str "This task will be submit soon! (topology id='" id "', jar='" jar "', class='" klass "')")))))
+                    (reset! result (str "This task will be submit soon! (job id='" id "', jar='" jar "', class='" klass "', group='" group "', type=" type "')")))))
             (catch Throwable e
-              (reset! result (str  e "Topology submission exception. (topology id='" id "', jar='" jar "', class='" klass "')"))
+              (reset! result (str  e "Task submission exception. (job id='" id "', jar='" jar "', class='" klass "', group='" group "', type=" type "')"))
               (log/error @result)))
           @result))
+
+(defn service-handler [conf zk-handler]
+  (let [assignment-path "/assignments"
+        status-path "/status"
+        command-path "/commands"
+        floor-score (conf MAGPIE-FLOOR-SCORE 256)]
+    
+    (reify Nimbus$Iface
+      (^String submitTopology
+        [this ^String id ^String jar ^String klass]
+        (submit-task conf zk-handler id jar klass "default" "memory"))
+      
+      (^String submitTask
+        [this ^String id ^String jar ^String klass ^String group ^String type]
+        (submit-task conf zk-handler id jar klass group type))
       
       (^String killTopology
         [this ^String id]

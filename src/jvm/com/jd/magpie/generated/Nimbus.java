@@ -37,7 +37,7 @@ public class Nimbus {
 
   public interface Iface {
 
-    public String submitTopology(String id, String jar, String klass, String group, String type) throws org.apache.thrift.TException;
+    public String submitTopology(String id, String jar, String klass) throws org.apache.thrift.TException;
 
     public String killTopology(String id) throws org.apache.thrift.TException;
 
@@ -47,11 +47,13 @@ public class Nimbus {
 
     public String reloadTopology(String id) throws org.apache.thrift.TException;
 
+    public String submitTask(String id, String jar, String klass, String group, String type) throws org.apache.thrift.TException;
+
   }
 
   public interface AsyncIface {
 
-    public void submitTopology(String id, String jar, String klass, String group, String type, org.apache.thrift.async.AsyncMethodCallback resultHandler) throws org.apache.thrift.TException;
+    public void submitTopology(String id, String jar, String klass, org.apache.thrift.async.AsyncMethodCallback resultHandler) throws org.apache.thrift.TException;
 
     public void killTopology(String id, org.apache.thrift.async.AsyncMethodCallback resultHandler) throws org.apache.thrift.TException;
 
@@ -60,6 +62,8 @@ public class Nimbus {
     public void activeTopology(String id, org.apache.thrift.async.AsyncMethodCallback resultHandler) throws org.apache.thrift.TException;
 
     public void reloadTopology(String id, org.apache.thrift.async.AsyncMethodCallback resultHandler) throws org.apache.thrift.TException;
+
+    public void submitTask(String id, String jar, String klass, String group, String type, org.apache.thrift.async.AsyncMethodCallback resultHandler) throws org.apache.thrift.TException;
 
   }
 
@@ -83,20 +87,18 @@ public class Nimbus {
       super(iprot, oprot);
     }
 
-    public String submitTopology(String id, String jar, String klass, String group, String type) throws org.apache.thrift.TException
+    public String submitTopology(String id, String jar, String klass) throws org.apache.thrift.TException
     {
-      send_submitTopology(id, jar, klass, group, type);
+      send_submitTopology(id, jar, klass);
       return recv_submitTopology();
     }
 
-    public void send_submitTopology(String id, String jar, String klass, String group, String type) throws org.apache.thrift.TException
+    public void send_submitTopology(String id, String jar, String klass) throws org.apache.thrift.TException
     {
       submitTopology_args args = new submitTopology_args();
       args.set_id(id);
       args.set_jar(jar);
       args.set_klass(klass);
-      args.set_group(group);
-      args.set_type(type);
       sendBase("submitTopology", args);
     }
 
@@ -202,6 +204,33 @@ public class Nimbus {
       throw new org.apache.thrift.TApplicationException(org.apache.thrift.TApplicationException.MISSING_RESULT, "reloadTopology failed: unknown result");
     }
 
+    public String submitTask(String id, String jar, String klass, String group, String type) throws org.apache.thrift.TException
+    {
+      send_submitTask(id, jar, klass, group, type);
+      return recv_submitTask();
+    }
+
+    public void send_submitTask(String id, String jar, String klass, String group, String type) throws org.apache.thrift.TException
+    {
+      submitTask_args args = new submitTask_args();
+      args.set_id(id);
+      args.set_jar(jar);
+      args.set_klass(klass);
+      args.set_group(group);
+      args.set_type(type);
+      sendBase("submitTask", args);
+    }
+
+    public String recv_submitTask() throws org.apache.thrift.TException
+    {
+      submitTask_result result = new submitTask_result();
+      receiveBase(result, "submitTask");
+      if (result.is_set_success()) {
+        return result.success;
+      }
+      throw new org.apache.thrift.TApplicationException(org.apache.thrift.TApplicationException.MISSING_RESULT, "submitTask failed: unknown result");
+    }
+
   }
   public static class AsyncClient extends org.apache.thrift.async.TAsyncClient implements AsyncIface {
     public static class Factory implements org.apache.thrift.async.TAsyncClientFactory<AsyncClient> {
@@ -220,9 +249,9 @@ public class Nimbus {
       super(protocolFactory, clientManager, transport);
     }
 
-    public void submitTopology(String id, String jar, String klass, String group, String type, org.apache.thrift.async.AsyncMethodCallback resultHandler) throws org.apache.thrift.TException {
+    public void submitTopology(String id, String jar, String klass, org.apache.thrift.async.AsyncMethodCallback resultHandler) throws org.apache.thrift.TException {
       checkReady();
-      submitTopology_call method_call = new submitTopology_call(id, jar, klass, group, type, resultHandler, this, ___protocolFactory, ___transport);
+      submitTopology_call method_call = new submitTopology_call(id, jar, klass, resultHandler, this, ___protocolFactory, ___transport);
       this.___currentMethod = method_call;
       ___manager.call(method_call);
     }
@@ -231,15 +260,11 @@ public class Nimbus {
       private String id;
       private String jar;
       private String klass;
-      private String group;
-      private String type;
-      public submitTopology_call(String id, String jar, String klass, String group, String type, org.apache.thrift.async.AsyncMethodCallback resultHandler, org.apache.thrift.async.TAsyncClient client, org.apache.thrift.protocol.TProtocolFactory protocolFactory, org.apache.thrift.transport.TNonblockingTransport transport) throws org.apache.thrift.TException {
+      public submitTopology_call(String id, String jar, String klass, org.apache.thrift.async.AsyncMethodCallback resultHandler, org.apache.thrift.async.TAsyncClient client, org.apache.thrift.protocol.TProtocolFactory protocolFactory, org.apache.thrift.transport.TNonblockingTransport transport) throws org.apache.thrift.TException {
         super(client, protocolFactory, transport, resultHandler, false);
         this.id = id;
         this.jar = jar;
         this.klass = klass;
-        this.group = group;
-        this.type = type;
       }
 
       public void write_args(org.apache.thrift.protocol.TProtocol prot) throws org.apache.thrift.TException {
@@ -248,8 +273,6 @@ public class Nimbus {
         args.set_id(id);
         args.set_jar(jar);
         args.set_klass(klass);
-        args.set_group(group);
-        args.set_type(type);
         args.write(prot);
         prot.writeMessageEnd();
       }
@@ -392,6 +415,50 @@ public class Nimbus {
       }
     }
 
+    public void submitTask(String id, String jar, String klass, String group, String type, org.apache.thrift.async.AsyncMethodCallback resultHandler) throws org.apache.thrift.TException {
+      checkReady();
+      submitTask_call method_call = new submitTask_call(id, jar, klass, group, type, resultHandler, this, ___protocolFactory, ___transport);
+      this.___currentMethod = method_call;
+      ___manager.call(method_call);
+    }
+
+    public static class submitTask_call extends org.apache.thrift.async.TAsyncMethodCall {
+      private String id;
+      private String jar;
+      private String klass;
+      private String group;
+      private String type;
+      public submitTask_call(String id, String jar, String klass, String group, String type, org.apache.thrift.async.AsyncMethodCallback resultHandler, org.apache.thrift.async.TAsyncClient client, org.apache.thrift.protocol.TProtocolFactory protocolFactory, org.apache.thrift.transport.TNonblockingTransport transport) throws org.apache.thrift.TException {
+        super(client, protocolFactory, transport, resultHandler, false);
+        this.id = id;
+        this.jar = jar;
+        this.klass = klass;
+        this.group = group;
+        this.type = type;
+      }
+
+      public void write_args(org.apache.thrift.protocol.TProtocol prot) throws org.apache.thrift.TException {
+        prot.writeMessageBegin(new org.apache.thrift.protocol.TMessage("submitTask", org.apache.thrift.protocol.TMessageType.CALL, 0));
+        submitTask_args args = new submitTask_args();
+        args.set_id(id);
+        args.set_jar(jar);
+        args.set_klass(klass);
+        args.set_group(group);
+        args.set_type(type);
+        args.write(prot);
+        prot.writeMessageEnd();
+      }
+
+      public String getResult() throws org.apache.thrift.TException {
+        if (getState() != org.apache.thrift.async.TAsyncMethodCall.State.RESPONSE_READ) {
+          throw new IllegalStateException("Method call not finished!");
+        }
+        org.apache.thrift.transport.TMemoryInputTransport memoryTransport = new org.apache.thrift.transport.TMemoryInputTransport(getFrameBuffer().array());
+        org.apache.thrift.protocol.TProtocol prot = client.getProtocolFactory().getProtocol(memoryTransport);
+        return (new Client(prot)).recv_submitTask();
+      }
+    }
+
   }
 
   public static class Processor<I extends Iface> extends org.apache.thrift.TBaseProcessor<I> implements org.apache.thrift.TProcessor {
@@ -410,6 +477,7 @@ public class Nimbus {
       processMap.put("pauseTopology", new pauseTopology());
       processMap.put("activeTopology", new activeTopology());
       processMap.put("reloadTopology", new reloadTopology());
+      processMap.put("submitTask", new submitTask());
       return processMap;
     }
 
@@ -428,7 +496,7 @@ public class Nimbus {
 
       public submitTopology_result getResult(I iface, submitTopology_args args) throws org.apache.thrift.TException {
         submitTopology_result result = new submitTopology_result();
-        result.success = iface.submitTopology(args.id, args.jar, args.klass, args.group, args.type);
+        result.success = iface.submitTopology(args.id, args.jar, args.klass);
         return result;
       }
     }
@@ -513,6 +581,26 @@ public class Nimbus {
       }
     }
 
+    public static class submitTask<I extends Iface> extends org.apache.thrift.ProcessFunction<I, submitTask_args> {
+      public submitTask() {
+        super("submitTask");
+      }
+
+      public submitTask_args getEmptyArgsInstance() {
+        return new submitTask_args();
+      }
+
+      protected boolean isOneway() {
+        return false;
+      }
+
+      public submitTask_result getResult(I iface, submitTask_args args) throws org.apache.thrift.TException {
+        submitTask_result result = new submitTask_result();
+        result.success = iface.submitTask(args.id, args.jar, args.klass, args.group, args.type);
+        return result;
+      }
+    }
+
   }
 
   public static class AsyncProcessor<I extends AsyncIface> extends org.apache.thrift.TBaseAsyncProcessor<I> {
@@ -531,6 +619,7 @@ public class Nimbus {
       processMap.put("pauseTopology", new pauseTopology());
       processMap.put("activeTopology", new activeTopology());
       processMap.put("reloadTopology", new reloadTopology());
+      processMap.put("submitTask", new submitTask());
       return processMap;
     }
 
@@ -581,7 +670,7 @@ public class Nimbus {
       }
 
       public void start(I iface, submitTopology_args args, org.apache.thrift.async.AsyncMethodCallback<String> resultHandler) throws TException {
-        iface.submitTopology(args.id, args.jar, args.klass, args.group, args.type,resultHandler);
+        iface.submitTopology(args.id, args.jar, args.klass,resultHandler);
       }
     }
 
@@ -789,6 +878,57 @@ public class Nimbus {
       }
     }
 
+    public static class submitTask<I extends AsyncIface> extends org.apache.thrift.AsyncProcessFunction<I, submitTask_args, String> {
+      public submitTask() {
+        super("submitTask");
+      }
+
+      public submitTask_args getEmptyArgsInstance() {
+        return new submitTask_args();
+      }
+
+      public AsyncMethodCallback<String> getResultHandler(final AsyncFrameBuffer fb, final int seqid) {
+        final org.apache.thrift.AsyncProcessFunction fcall = this;
+        return new AsyncMethodCallback<String>() { 
+          public void onComplete(String o) {
+            submitTask_result result = new submitTask_result();
+            result.success = o;
+            try {
+              fcall.sendResponse(fb,result, org.apache.thrift.protocol.TMessageType.REPLY,seqid);
+              return;
+            } catch (Exception e) {
+              LOGGER.error("Exception writing to internal frame buffer", e);
+            }
+            fb.close();
+          }
+          public void onError(Exception e) {
+            byte msgType = org.apache.thrift.protocol.TMessageType.REPLY;
+            org.apache.thrift.TBase msg;
+            submitTask_result result = new submitTask_result();
+            {
+              msgType = org.apache.thrift.protocol.TMessageType.EXCEPTION;
+              msg = (org.apache.thrift.TBase)new org.apache.thrift.TApplicationException(org.apache.thrift.TApplicationException.INTERNAL_ERROR, e.getMessage());
+            }
+            try {
+              fcall.sendResponse(fb,msg,msgType,seqid);
+              return;
+            } catch (Exception ex) {
+              LOGGER.error("Exception writing to internal frame buffer", ex);
+            }
+            fb.close();
+          }
+        };
+      }
+
+      protected boolean isOneway() {
+        return false;
+      }
+
+      public void start(I iface, submitTask_args args, org.apache.thrift.async.AsyncMethodCallback<String> resultHandler) throws TException {
+        iface.submitTask(args.id, args.jar, args.klass, args.group, args.type,resultHandler);
+      }
+    }
+
   }
 
   public static class submitTopology_args implements org.apache.thrift.TBase<submitTopology_args, submitTopology_args._Fields>, java.io.Serializable, Cloneable, Comparable<submitTopology_args>   {
@@ -797,8 +937,6 @@ public class Nimbus {
     private static final org.apache.thrift.protocol.TField ID_FIELD_DESC = new org.apache.thrift.protocol.TField("id", org.apache.thrift.protocol.TType.STRING, (short)1);
     private static final org.apache.thrift.protocol.TField JAR_FIELD_DESC = new org.apache.thrift.protocol.TField("jar", org.apache.thrift.protocol.TType.STRING, (short)2);
     private static final org.apache.thrift.protocol.TField KLASS_FIELD_DESC = new org.apache.thrift.protocol.TField("klass", org.apache.thrift.protocol.TType.STRING, (short)3);
-    private static final org.apache.thrift.protocol.TField GROUP_FIELD_DESC = new org.apache.thrift.protocol.TField("group", org.apache.thrift.protocol.TType.STRING, (short)4);
-    private static final org.apache.thrift.protocol.TField TYPE_FIELD_DESC = new org.apache.thrift.protocol.TField("type", org.apache.thrift.protocol.TType.STRING, (short)5);
 
     private static final Map<Class<? extends IScheme>, SchemeFactory> schemes = new HashMap<Class<? extends IScheme>, SchemeFactory>();
     static {
@@ -809,16 +947,12 @@ public class Nimbus {
     private String id; // required
     private String jar; // required
     private String klass; // required
-    private String group; // required
-    private String type; // required
 
     /** The set of fields this struct contains, along with convenience methods for finding and manipulating them. */
     public enum _Fields implements org.apache.thrift.TFieldIdEnum {
       ID((short)1, "id"),
       JAR((short)2, "jar"),
-      KLASS((short)3, "klass"),
-      GROUP((short)4, "group"),
-      TYPE((short)5, "type");
+      KLASS((short)3, "klass");
 
       private static final Map<String, _Fields> byName = new HashMap<String, _Fields>();
 
@@ -839,10 +973,6 @@ public class Nimbus {
             return JAR;
           case 3: // KLASS
             return KLASS;
-          case 4: // GROUP
-            return GROUP;
-          case 5: // TYPE
-            return TYPE;
           default:
             return null;
         }
@@ -892,10 +1022,6 @@ public class Nimbus {
           new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRING)));
       tmpMap.put(_Fields.KLASS, new org.apache.thrift.meta_data.FieldMetaData("klass", org.apache.thrift.TFieldRequirementType.DEFAULT, 
           new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRING)));
-      tmpMap.put(_Fields.GROUP, new org.apache.thrift.meta_data.FieldMetaData("group", org.apache.thrift.TFieldRequirementType.DEFAULT, 
-          new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRING)));
-      tmpMap.put(_Fields.TYPE, new org.apache.thrift.meta_data.FieldMetaData("type", org.apache.thrift.TFieldRequirementType.DEFAULT, 
-          new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRING)));
       metaDataMap = Collections.unmodifiableMap(tmpMap);
       org.apache.thrift.meta_data.FieldMetaData.addStructMetaDataMap(submitTopology_args.class, metaDataMap);
     }
@@ -906,16 +1032,12 @@ public class Nimbus {
     public submitTopology_args(
       String id,
       String jar,
-      String klass,
-      String group,
-      String type)
+      String klass)
     {
       this();
       this.id = id;
       this.jar = jar;
       this.klass = klass;
-      this.group = group;
-      this.type = type;
     }
 
     /**
@@ -931,12 +1053,6 @@ public class Nimbus {
       if (other.is_set_klass()) {
         this.klass = other.klass;
       }
-      if (other.is_set_group()) {
-        this.group = other.group;
-      }
-      if (other.is_set_type()) {
-        this.type = other.type;
-      }
     }
 
     public submitTopology_args deepCopy() {
@@ -948,8 +1064,6 @@ public class Nimbus {
       this.id = null;
       this.jar = null;
       this.klass = null;
-      this.group = null;
-      this.type = null;
     }
 
     public String get_id() {
@@ -1021,52 +1135,6 @@ public class Nimbus {
       }
     }
 
-    public String get_group() {
-      return this.group;
-    }
-
-    public void set_group(String group) {
-      this.group = group;
-    }
-
-    public void unset_group() {
-      this.group = null;
-    }
-
-    /** Returns true if field group is set (has been assigned a value) and false otherwise */
-    public boolean is_set_group() {
-      return this.group != null;
-    }
-
-    public void set_group_isSet(boolean value) {
-      if (!value) {
-        this.group = null;
-      }
-    }
-
-    public String get_type() {
-      return this.type;
-    }
-
-    public void set_type(String type) {
-      this.type = type;
-    }
-
-    public void unset_type() {
-      this.type = null;
-    }
-
-    /** Returns true if field type is set (has been assigned a value) and false otherwise */
-    public boolean is_set_type() {
-      return this.type != null;
-    }
-
-    public void set_type_isSet(boolean value) {
-      if (!value) {
-        this.type = null;
-      }
-    }
-
     public void setFieldValue(_Fields field, Object value) {
       switch (field) {
       case ID:
@@ -1093,22 +1161,6 @@ public class Nimbus {
         }
         break;
 
-      case GROUP:
-        if (value == null) {
-          unset_group();
-        } else {
-          set_group((String)value);
-        }
-        break;
-
-      case TYPE:
-        if (value == null) {
-          unset_type();
-        } else {
-          set_type((String)value);
-        }
-        break;
-
       }
     }
 
@@ -1122,12 +1174,6 @@ public class Nimbus {
 
       case KLASS:
         return get_klass();
-
-      case GROUP:
-        return get_group();
-
-      case TYPE:
-        return get_type();
 
       }
       throw new IllegalStateException();
@@ -1146,10 +1192,6 @@ public class Nimbus {
         return is_set_jar();
       case KLASS:
         return is_set_klass();
-      case GROUP:
-        return is_set_group();
-      case TYPE:
-        return is_set_type();
       }
       throw new IllegalStateException();
     }
@@ -1194,24 +1236,6 @@ public class Nimbus {
           return false;
       }
 
-      boolean this_present_group = true && this.is_set_group();
-      boolean that_present_group = true && that.is_set_group();
-      if (this_present_group || that_present_group) {
-        if (!(this_present_group && that_present_group))
-          return false;
-        if (!this.group.equals(that.group))
-          return false;
-      }
-
-      boolean this_present_type = true && this.is_set_type();
-      boolean that_present_type = true && that.is_set_type();
-      if (this_present_type || that_present_type) {
-        if (!(this_present_type && that_present_type))
-          return false;
-        if (!this.type.equals(that.type))
-          return false;
-      }
-
       return true;
     }
 
@@ -1233,16 +1257,6 @@ public class Nimbus {
       builder.append(present_klass);
       if (present_klass)
         builder.append(klass);
-
-      boolean present_group = true && (is_set_group());
-      builder.append(present_group);
-      if (present_group)
-        builder.append(group);
-
-      boolean present_type = true && (is_set_type());
-      builder.append(present_type);
-      if (present_type)
-        builder.append(type);
 
       return builder.toHashCode();
     }
@@ -1281,26 +1295,6 @@ public class Nimbus {
       }
       if (is_set_klass()) {
         lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.klass, other.klass);
-        if (lastComparison != 0) {
-          return lastComparison;
-        }
-      }
-      lastComparison = Boolean.valueOf(is_set_group()).compareTo(other.is_set_group());
-      if (lastComparison != 0) {
-        return lastComparison;
-      }
-      if (is_set_group()) {
-        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.group, other.group);
-        if (lastComparison != 0) {
-          return lastComparison;
-        }
-      }
-      lastComparison = Boolean.valueOf(is_set_type()).compareTo(other.is_set_type());
-      if (lastComparison != 0) {
-        return lastComparison;
-      }
-      if (is_set_type()) {
-        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.type, other.type);
         if (lastComparison != 0) {
           return lastComparison;
         }
@@ -1346,22 +1340,6 @@ public class Nimbus {
         sb.append("null");
       } else {
         sb.append(this.klass);
-      }
-      first = false;
-      if (!first) sb.append(", ");
-      sb.append("group:");
-      if (this.group == null) {
-        sb.append("null");
-      } else {
-        sb.append(this.group);
-      }
-      first = false;
-      if (!first) sb.append(", ");
-      sb.append("type:");
-      if (this.type == null) {
-        sb.append("null");
-      } else {
-        sb.append(this.type);
       }
       first = false;
       sb.append(")");
@@ -1431,22 +1409,6 @@ public class Nimbus {
                 org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
               }
               break;
-            case 4: // GROUP
-              if (schemeField.type == org.apache.thrift.protocol.TType.STRING) {
-                struct.group = iprot.readString();
-                struct.set_group_isSet(true);
-              } else { 
-                org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
-              }
-              break;
-            case 5: // TYPE
-              if (schemeField.type == org.apache.thrift.protocol.TType.STRING) {
-                struct.type = iprot.readString();
-                struct.set_type_isSet(true);
-              } else { 
-                org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
-              }
-              break;
             default:
               org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
           }
@@ -1473,16 +1435,6 @@ public class Nimbus {
         if (struct.klass != null) {
           oprot.writeFieldBegin(KLASS_FIELD_DESC);
           oprot.writeString(struct.klass);
-          oprot.writeFieldEnd();
-        }
-        if (struct.group != null) {
-          oprot.writeFieldBegin(GROUP_FIELD_DESC);
-          oprot.writeString(struct.group);
-          oprot.writeFieldEnd();
-        }
-        if (struct.type != null) {
-          oprot.writeFieldBegin(TYPE_FIELD_DESC);
-          oprot.writeString(struct.type);
           oprot.writeFieldEnd();
         }
         oprot.writeFieldStop();
@@ -1512,13 +1464,7 @@ public class Nimbus {
         if (struct.is_set_klass()) {
           optionals.set(2);
         }
-        if (struct.is_set_group()) {
-          optionals.set(3);
-        }
-        if (struct.is_set_type()) {
-          optionals.set(4);
-        }
-        oprot.writeBitSet(optionals, 5);
+        oprot.writeBitSet(optionals, 3);
         if (struct.is_set_id()) {
           oprot.writeString(struct.id);
         }
@@ -1528,18 +1474,12 @@ public class Nimbus {
         if (struct.is_set_klass()) {
           oprot.writeString(struct.klass);
         }
-        if (struct.is_set_group()) {
-          oprot.writeString(struct.group);
-        }
-        if (struct.is_set_type()) {
-          oprot.writeString(struct.type);
-        }
       }
 
       @Override
       public void read(org.apache.thrift.protocol.TProtocol prot, submitTopology_args struct) throws org.apache.thrift.TException {
         TTupleProtocol iprot = (TTupleProtocol) prot;
-        BitSet incoming = iprot.readBitSet(5);
+        BitSet incoming = iprot.readBitSet(3);
         if (incoming.get(0)) {
           struct.id = iprot.readString();
           struct.set_id_isSet(true);
@@ -1551,14 +1491,6 @@ public class Nimbus {
         if (incoming.get(2)) {
           struct.klass = iprot.readString();
           struct.set_klass_isSet(true);
-        }
-        if (incoming.get(3)) {
-          struct.group = iprot.readString();
-          struct.set_group_isSet(true);
-        }
-        if (incoming.get(4)) {
-          struct.type = iprot.readString();
-          struct.set_type_isSet(true);
         }
       }
     }
@@ -4776,6 +4708,1138 @@ public class Nimbus {
 
       @Override
       public void read(org.apache.thrift.protocol.TProtocol prot, reloadTopology_result struct) throws org.apache.thrift.TException {
+        TTupleProtocol iprot = (TTupleProtocol) prot;
+        BitSet incoming = iprot.readBitSet(1);
+        if (incoming.get(0)) {
+          struct.success = iprot.readString();
+          struct.set_success_isSet(true);
+        }
+      }
+    }
+
+  }
+
+  public static class submitTask_args implements org.apache.thrift.TBase<submitTask_args, submitTask_args._Fields>, java.io.Serializable, Cloneable, Comparable<submitTask_args>   {
+    private static final org.apache.thrift.protocol.TStruct STRUCT_DESC = new org.apache.thrift.protocol.TStruct("submitTask_args");
+
+    private static final org.apache.thrift.protocol.TField ID_FIELD_DESC = new org.apache.thrift.protocol.TField("id", org.apache.thrift.protocol.TType.STRING, (short)1);
+    private static final org.apache.thrift.protocol.TField JAR_FIELD_DESC = new org.apache.thrift.protocol.TField("jar", org.apache.thrift.protocol.TType.STRING, (short)2);
+    private static final org.apache.thrift.protocol.TField KLASS_FIELD_DESC = new org.apache.thrift.protocol.TField("klass", org.apache.thrift.protocol.TType.STRING, (short)3);
+    private static final org.apache.thrift.protocol.TField GROUP_FIELD_DESC = new org.apache.thrift.protocol.TField("group", org.apache.thrift.protocol.TType.STRING, (short)4);
+    private static final org.apache.thrift.protocol.TField TYPE_FIELD_DESC = new org.apache.thrift.protocol.TField("type", org.apache.thrift.protocol.TType.STRING, (short)5);
+
+    private static final Map<Class<? extends IScheme>, SchemeFactory> schemes = new HashMap<Class<? extends IScheme>, SchemeFactory>();
+    static {
+      schemes.put(StandardScheme.class, new submitTask_argsStandardSchemeFactory());
+      schemes.put(TupleScheme.class, new submitTask_argsTupleSchemeFactory());
+    }
+
+    private String id; // required
+    private String jar; // required
+    private String klass; // required
+    private String group; // required
+    private String type; // required
+
+    /** The set of fields this struct contains, along with convenience methods for finding and manipulating them. */
+    public enum _Fields implements org.apache.thrift.TFieldIdEnum {
+      ID((short)1, "id"),
+      JAR((short)2, "jar"),
+      KLASS((short)3, "klass"),
+      GROUP((short)4, "group"),
+      TYPE((short)5, "type");
+
+      private static final Map<String, _Fields> byName = new HashMap<String, _Fields>();
+
+      static {
+        for (_Fields field : EnumSet.allOf(_Fields.class)) {
+          byName.put(field.getFieldName(), field);
+        }
+      }
+
+      /**
+       * Find the _Fields constant that matches fieldId, or null if its not found.
+       */
+      public static _Fields findByThriftId(int fieldId) {
+        switch(fieldId) {
+          case 1: // ID
+            return ID;
+          case 2: // JAR
+            return JAR;
+          case 3: // KLASS
+            return KLASS;
+          case 4: // GROUP
+            return GROUP;
+          case 5: // TYPE
+            return TYPE;
+          default:
+            return null;
+        }
+      }
+
+      /**
+       * Find the _Fields constant that matches fieldId, throwing an exception
+       * if it is not found.
+       */
+      public static _Fields findByThriftIdOrThrow(int fieldId) {
+        _Fields fields = findByThriftId(fieldId);
+        if (fields == null) throw new IllegalArgumentException("Field " + fieldId + " doesn't exist!");
+        return fields;
+      }
+
+      /**
+       * Find the _Fields constant that matches name, or null if its not found.
+       */
+      public static _Fields findByName(String name) {
+        return byName.get(name);
+      }
+
+      private final short _thriftId;
+      private final String _fieldName;
+
+      _Fields(short thriftId, String fieldName) {
+        _thriftId = thriftId;
+        _fieldName = fieldName;
+      }
+
+      public short getThriftFieldId() {
+        return _thriftId;
+      }
+
+      public String getFieldName() {
+        return _fieldName;
+      }
+    }
+
+    // isset id assignments
+    public static final Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> metaDataMap;
+    static {
+      Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> tmpMap = new EnumMap<_Fields, org.apache.thrift.meta_data.FieldMetaData>(_Fields.class);
+      tmpMap.put(_Fields.ID, new org.apache.thrift.meta_data.FieldMetaData("id", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+          new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRING)));
+      tmpMap.put(_Fields.JAR, new org.apache.thrift.meta_data.FieldMetaData("jar", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+          new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRING)));
+      tmpMap.put(_Fields.KLASS, new org.apache.thrift.meta_data.FieldMetaData("klass", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+          new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRING)));
+      tmpMap.put(_Fields.GROUP, new org.apache.thrift.meta_data.FieldMetaData("group", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+          new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRING)));
+      tmpMap.put(_Fields.TYPE, new org.apache.thrift.meta_data.FieldMetaData("type", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+          new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRING)));
+      metaDataMap = Collections.unmodifiableMap(tmpMap);
+      org.apache.thrift.meta_data.FieldMetaData.addStructMetaDataMap(submitTask_args.class, metaDataMap);
+    }
+
+    public submitTask_args() {
+    }
+
+    public submitTask_args(
+      String id,
+      String jar,
+      String klass,
+      String group,
+      String type)
+    {
+      this();
+      this.id = id;
+      this.jar = jar;
+      this.klass = klass;
+      this.group = group;
+      this.type = type;
+    }
+
+    /**
+     * Performs a deep copy on <i>other</i>.
+     */
+    public submitTask_args(submitTask_args other) {
+      if (other.is_set_id()) {
+        this.id = other.id;
+      }
+      if (other.is_set_jar()) {
+        this.jar = other.jar;
+      }
+      if (other.is_set_klass()) {
+        this.klass = other.klass;
+      }
+      if (other.is_set_group()) {
+        this.group = other.group;
+      }
+      if (other.is_set_type()) {
+        this.type = other.type;
+      }
+    }
+
+    public submitTask_args deepCopy() {
+      return new submitTask_args(this);
+    }
+
+    @Override
+    public void clear() {
+      this.id = null;
+      this.jar = null;
+      this.klass = null;
+      this.group = null;
+      this.type = null;
+    }
+
+    public String get_id() {
+      return this.id;
+    }
+
+    public void set_id(String id) {
+      this.id = id;
+    }
+
+    public void unset_id() {
+      this.id = null;
+    }
+
+    /** Returns true if field id is set (has been assigned a value) and false otherwise */
+    public boolean is_set_id() {
+      return this.id != null;
+    }
+
+    public void set_id_isSet(boolean value) {
+      if (!value) {
+        this.id = null;
+      }
+    }
+
+    public String get_jar() {
+      return this.jar;
+    }
+
+    public void set_jar(String jar) {
+      this.jar = jar;
+    }
+
+    public void unset_jar() {
+      this.jar = null;
+    }
+
+    /** Returns true if field jar is set (has been assigned a value) and false otherwise */
+    public boolean is_set_jar() {
+      return this.jar != null;
+    }
+
+    public void set_jar_isSet(boolean value) {
+      if (!value) {
+        this.jar = null;
+      }
+    }
+
+    public String get_klass() {
+      return this.klass;
+    }
+
+    public void set_klass(String klass) {
+      this.klass = klass;
+    }
+
+    public void unset_klass() {
+      this.klass = null;
+    }
+
+    /** Returns true if field klass is set (has been assigned a value) and false otherwise */
+    public boolean is_set_klass() {
+      return this.klass != null;
+    }
+
+    public void set_klass_isSet(boolean value) {
+      if (!value) {
+        this.klass = null;
+      }
+    }
+
+    public String get_group() {
+      return this.group;
+    }
+
+    public void set_group(String group) {
+      this.group = group;
+    }
+
+    public void unset_group() {
+      this.group = null;
+    }
+
+    /** Returns true if field group is set (has been assigned a value) and false otherwise */
+    public boolean is_set_group() {
+      return this.group != null;
+    }
+
+    public void set_group_isSet(boolean value) {
+      if (!value) {
+        this.group = null;
+      }
+    }
+
+    public String get_type() {
+      return this.type;
+    }
+
+    public void set_type(String type) {
+      this.type = type;
+    }
+
+    public void unset_type() {
+      this.type = null;
+    }
+
+    /** Returns true if field type is set (has been assigned a value) and false otherwise */
+    public boolean is_set_type() {
+      return this.type != null;
+    }
+
+    public void set_type_isSet(boolean value) {
+      if (!value) {
+        this.type = null;
+      }
+    }
+
+    public void setFieldValue(_Fields field, Object value) {
+      switch (field) {
+      case ID:
+        if (value == null) {
+          unset_id();
+        } else {
+          set_id((String)value);
+        }
+        break;
+
+      case JAR:
+        if (value == null) {
+          unset_jar();
+        } else {
+          set_jar((String)value);
+        }
+        break;
+
+      case KLASS:
+        if (value == null) {
+          unset_klass();
+        } else {
+          set_klass((String)value);
+        }
+        break;
+
+      case GROUP:
+        if (value == null) {
+          unset_group();
+        } else {
+          set_group((String)value);
+        }
+        break;
+
+      case TYPE:
+        if (value == null) {
+          unset_type();
+        } else {
+          set_type((String)value);
+        }
+        break;
+
+      }
+    }
+
+    public Object getFieldValue(_Fields field) {
+      switch (field) {
+      case ID:
+        return get_id();
+
+      case JAR:
+        return get_jar();
+
+      case KLASS:
+        return get_klass();
+
+      case GROUP:
+        return get_group();
+
+      case TYPE:
+        return get_type();
+
+      }
+      throw new IllegalStateException();
+    }
+
+    /** Returns true if field corresponding to fieldID is set (has been assigned a value) and false otherwise */
+    public boolean isSet(_Fields field) {
+      if (field == null) {
+        throw new IllegalArgumentException();
+      }
+
+      switch (field) {
+      case ID:
+        return is_set_id();
+      case JAR:
+        return is_set_jar();
+      case KLASS:
+        return is_set_klass();
+      case GROUP:
+        return is_set_group();
+      case TYPE:
+        return is_set_type();
+      }
+      throw new IllegalStateException();
+    }
+
+    @Override
+    public boolean equals(Object that) {
+      if (that == null)
+        return false;
+      if (that instanceof submitTask_args)
+        return this.equals((submitTask_args)that);
+      return false;
+    }
+
+    public boolean equals(submitTask_args that) {
+      if (that == null)
+        return false;
+
+      boolean this_present_id = true && this.is_set_id();
+      boolean that_present_id = true && that.is_set_id();
+      if (this_present_id || that_present_id) {
+        if (!(this_present_id && that_present_id))
+          return false;
+        if (!this.id.equals(that.id))
+          return false;
+      }
+
+      boolean this_present_jar = true && this.is_set_jar();
+      boolean that_present_jar = true && that.is_set_jar();
+      if (this_present_jar || that_present_jar) {
+        if (!(this_present_jar && that_present_jar))
+          return false;
+        if (!this.jar.equals(that.jar))
+          return false;
+      }
+
+      boolean this_present_klass = true && this.is_set_klass();
+      boolean that_present_klass = true && that.is_set_klass();
+      if (this_present_klass || that_present_klass) {
+        if (!(this_present_klass && that_present_klass))
+          return false;
+        if (!this.klass.equals(that.klass))
+          return false;
+      }
+
+      boolean this_present_group = true && this.is_set_group();
+      boolean that_present_group = true && that.is_set_group();
+      if (this_present_group || that_present_group) {
+        if (!(this_present_group && that_present_group))
+          return false;
+        if (!this.group.equals(that.group))
+          return false;
+      }
+
+      boolean this_present_type = true && this.is_set_type();
+      boolean that_present_type = true && that.is_set_type();
+      if (this_present_type || that_present_type) {
+        if (!(this_present_type && that_present_type))
+          return false;
+        if (!this.type.equals(that.type))
+          return false;
+      }
+
+      return true;
+    }
+
+    @Override
+    public int hashCode() {
+      HashCodeBuilder builder = new HashCodeBuilder();
+
+      boolean present_id = true && (is_set_id());
+      builder.append(present_id);
+      if (present_id)
+        builder.append(id);
+
+      boolean present_jar = true && (is_set_jar());
+      builder.append(present_jar);
+      if (present_jar)
+        builder.append(jar);
+
+      boolean present_klass = true && (is_set_klass());
+      builder.append(present_klass);
+      if (present_klass)
+        builder.append(klass);
+
+      boolean present_group = true && (is_set_group());
+      builder.append(present_group);
+      if (present_group)
+        builder.append(group);
+
+      boolean present_type = true && (is_set_type());
+      builder.append(present_type);
+      if (present_type)
+        builder.append(type);
+
+      return builder.toHashCode();
+    }
+
+    @Override
+    public int compareTo(submitTask_args other) {
+      if (!getClass().equals(other.getClass())) {
+        return getClass().getName().compareTo(other.getClass().getName());
+      }
+
+      int lastComparison = 0;
+
+      lastComparison = Boolean.valueOf(is_set_id()).compareTo(other.is_set_id());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (is_set_id()) {
+        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.id, other.id);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      lastComparison = Boolean.valueOf(is_set_jar()).compareTo(other.is_set_jar());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (is_set_jar()) {
+        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.jar, other.jar);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      lastComparison = Boolean.valueOf(is_set_klass()).compareTo(other.is_set_klass());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (is_set_klass()) {
+        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.klass, other.klass);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      lastComparison = Boolean.valueOf(is_set_group()).compareTo(other.is_set_group());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (is_set_group()) {
+        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.group, other.group);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      lastComparison = Boolean.valueOf(is_set_type()).compareTo(other.is_set_type());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (is_set_type()) {
+        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.type, other.type);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      return 0;
+    }
+
+    public _Fields fieldForId(int fieldId) {
+      return _Fields.findByThriftId(fieldId);
+    }
+
+    public void read(org.apache.thrift.protocol.TProtocol iprot) throws org.apache.thrift.TException {
+      schemes.get(iprot.getScheme()).getScheme().read(iprot, this);
+    }
+
+    public void write(org.apache.thrift.protocol.TProtocol oprot) throws org.apache.thrift.TException {
+      schemes.get(oprot.getScheme()).getScheme().write(oprot, this);
+    }
+
+    @Override
+    public String toString() {
+      StringBuilder sb = new StringBuilder("submitTask_args(");
+      boolean first = true;
+
+      sb.append("id:");
+      if (this.id == null) {
+        sb.append("null");
+      } else {
+        sb.append(this.id);
+      }
+      first = false;
+      if (!first) sb.append(", ");
+      sb.append("jar:");
+      if (this.jar == null) {
+        sb.append("null");
+      } else {
+        sb.append(this.jar);
+      }
+      first = false;
+      if (!first) sb.append(", ");
+      sb.append("klass:");
+      if (this.klass == null) {
+        sb.append("null");
+      } else {
+        sb.append(this.klass);
+      }
+      first = false;
+      if (!first) sb.append(", ");
+      sb.append("group:");
+      if (this.group == null) {
+        sb.append("null");
+      } else {
+        sb.append(this.group);
+      }
+      first = false;
+      if (!first) sb.append(", ");
+      sb.append("type:");
+      if (this.type == null) {
+        sb.append("null");
+      } else {
+        sb.append(this.type);
+      }
+      first = false;
+      sb.append(")");
+      return sb.toString();
+    }
+
+    public void validate() throws org.apache.thrift.TException {
+      // check for required fields
+      // check for sub-struct validity
+    }
+
+    private void writeObject(java.io.ObjectOutputStream out) throws java.io.IOException {
+      try {
+        write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
+      } catch (org.apache.thrift.TException te) {
+        throw new java.io.IOException(te);
+      }
+    }
+
+    private void readObject(java.io.ObjectInputStream in) throws java.io.IOException, ClassNotFoundException {
+      try {
+        read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
+      } catch (org.apache.thrift.TException te) {
+        throw new java.io.IOException(te);
+      }
+    }
+
+    private static class submitTask_argsStandardSchemeFactory implements SchemeFactory {
+      public submitTask_argsStandardScheme getScheme() {
+        return new submitTask_argsStandardScheme();
+      }
+    }
+
+    private static class submitTask_argsStandardScheme extends StandardScheme<submitTask_args> {
+
+      public void read(org.apache.thrift.protocol.TProtocol iprot, submitTask_args struct) throws org.apache.thrift.TException {
+        org.apache.thrift.protocol.TField schemeField;
+        iprot.readStructBegin();
+        while (true)
+        {
+          schemeField = iprot.readFieldBegin();
+          if (schemeField.type == org.apache.thrift.protocol.TType.STOP) { 
+            break;
+          }
+          switch (schemeField.id) {
+            case 1: // ID
+              if (schemeField.type == org.apache.thrift.protocol.TType.STRING) {
+                struct.id = iprot.readString();
+                struct.set_id_isSet(true);
+              } else { 
+                org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+              }
+              break;
+            case 2: // JAR
+              if (schemeField.type == org.apache.thrift.protocol.TType.STRING) {
+                struct.jar = iprot.readString();
+                struct.set_jar_isSet(true);
+              } else { 
+                org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+              }
+              break;
+            case 3: // KLASS
+              if (schemeField.type == org.apache.thrift.protocol.TType.STRING) {
+                struct.klass = iprot.readString();
+                struct.set_klass_isSet(true);
+              } else { 
+                org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+              }
+              break;
+            case 4: // GROUP
+              if (schemeField.type == org.apache.thrift.protocol.TType.STRING) {
+                struct.group = iprot.readString();
+                struct.set_group_isSet(true);
+              } else { 
+                org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+              }
+              break;
+            case 5: // TYPE
+              if (schemeField.type == org.apache.thrift.protocol.TType.STRING) {
+                struct.type = iprot.readString();
+                struct.set_type_isSet(true);
+              } else { 
+                org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+              }
+              break;
+            default:
+              org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+          }
+          iprot.readFieldEnd();
+        }
+        iprot.readStructEnd();
+        struct.validate();
+      }
+
+      public void write(org.apache.thrift.protocol.TProtocol oprot, submitTask_args struct) throws org.apache.thrift.TException {
+        struct.validate();
+
+        oprot.writeStructBegin(STRUCT_DESC);
+        if (struct.id != null) {
+          oprot.writeFieldBegin(ID_FIELD_DESC);
+          oprot.writeString(struct.id);
+          oprot.writeFieldEnd();
+        }
+        if (struct.jar != null) {
+          oprot.writeFieldBegin(JAR_FIELD_DESC);
+          oprot.writeString(struct.jar);
+          oprot.writeFieldEnd();
+        }
+        if (struct.klass != null) {
+          oprot.writeFieldBegin(KLASS_FIELD_DESC);
+          oprot.writeString(struct.klass);
+          oprot.writeFieldEnd();
+        }
+        if (struct.group != null) {
+          oprot.writeFieldBegin(GROUP_FIELD_DESC);
+          oprot.writeString(struct.group);
+          oprot.writeFieldEnd();
+        }
+        if (struct.type != null) {
+          oprot.writeFieldBegin(TYPE_FIELD_DESC);
+          oprot.writeString(struct.type);
+          oprot.writeFieldEnd();
+        }
+        oprot.writeFieldStop();
+        oprot.writeStructEnd();
+      }
+
+    }
+
+    private static class submitTask_argsTupleSchemeFactory implements SchemeFactory {
+      public submitTask_argsTupleScheme getScheme() {
+        return new submitTask_argsTupleScheme();
+      }
+    }
+
+    private static class submitTask_argsTupleScheme extends TupleScheme<submitTask_args> {
+
+      @Override
+      public void write(org.apache.thrift.protocol.TProtocol prot, submitTask_args struct) throws org.apache.thrift.TException {
+        TTupleProtocol oprot = (TTupleProtocol) prot;
+        BitSet optionals = new BitSet();
+        if (struct.is_set_id()) {
+          optionals.set(0);
+        }
+        if (struct.is_set_jar()) {
+          optionals.set(1);
+        }
+        if (struct.is_set_klass()) {
+          optionals.set(2);
+        }
+        if (struct.is_set_group()) {
+          optionals.set(3);
+        }
+        if (struct.is_set_type()) {
+          optionals.set(4);
+        }
+        oprot.writeBitSet(optionals, 5);
+        if (struct.is_set_id()) {
+          oprot.writeString(struct.id);
+        }
+        if (struct.is_set_jar()) {
+          oprot.writeString(struct.jar);
+        }
+        if (struct.is_set_klass()) {
+          oprot.writeString(struct.klass);
+        }
+        if (struct.is_set_group()) {
+          oprot.writeString(struct.group);
+        }
+        if (struct.is_set_type()) {
+          oprot.writeString(struct.type);
+        }
+      }
+
+      @Override
+      public void read(org.apache.thrift.protocol.TProtocol prot, submitTask_args struct) throws org.apache.thrift.TException {
+        TTupleProtocol iprot = (TTupleProtocol) prot;
+        BitSet incoming = iprot.readBitSet(5);
+        if (incoming.get(0)) {
+          struct.id = iprot.readString();
+          struct.set_id_isSet(true);
+        }
+        if (incoming.get(1)) {
+          struct.jar = iprot.readString();
+          struct.set_jar_isSet(true);
+        }
+        if (incoming.get(2)) {
+          struct.klass = iprot.readString();
+          struct.set_klass_isSet(true);
+        }
+        if (incoming.get(3)) {
+          struct.group = iprot.readString();
+          struct.set_group_isSet(true);
+        }
+        if (incoming.get(4)) {
+          struct.type = iprot.readString();
+          struct.set_type_isSet(true);
+        }
+      }
+    }
+
+  }
+
+  public static class submitTask_result implements org.apache.thrift.TBase<submitTask_result, submitTask_result._Fields>, java.io.Serializable, Cloneable, Comparable<submitTask_result>   {
+    private static final org.apache.thrift.protocol.TStruct STRUCT_DESC = new org.apache.thrift.protocol.TStruct("submitTask_result");
+
+    private static final org.apache.thrift.protocol.TField SUCCESS_FIELD_DESC = new org.apache.thrift.protocol.TField("success", org.apache.thrift.protocol.TType.STRING, (short)0);
+
+    private static final Map<Class<? extends IScheme>, SchemeFactory> schemes = new HashMap<Class<? extends IScheme>, SchemeFactory>();
+    static {
+      schemes.put(StandardScheme.class, new submitTask_resultStandardSchemeFactory());
+      schemes.put(TupleScheme.class, new submitTask_resultTupleSchemeFactory());
+    }
+
+    private String success; // required
+
+    /** The set of fields this struct contains, along with convenience methods for finding and manipulating them. */
+    public enum _Fields implements org.apache.thrift.TFieldIdEnum {
+      SUCCESS((short)0, "success");
+
+      private static final Map<String, _Fields> byName = new HashMap<String, _Fields>();
+
+      static {
+        for (_Fields field : EnumSet.allOf(_Fields.class)) {
+          byName.put(field.getFieldName(), field);
+        }
+      }
+
+      /**
+       * Find the _Fields constant that matches fieldId, or null if its not found.
+       */
+      public static _Fields findByThriftId(int fieldId) {
+        switch(fieldId) {
+          case 0: // SUCCESS
+            return SUCCESS;
+          default:
+            return null;
+        }
+      }
+
+      /**
+       * Find the _Fields constant that matches fieldId, throwing an exception
+       * if it is not found.
+       */
+      public static _Fields findByThriftIdOrThrow(int fieldId) {
+        _Fields fields = findByThriftId(fieldId);
+        if (fields == null) throw new IllegalArgumentException("Field " + fieldId + " doesn't exist!");
+        return fields;
+      }
+
+      /**
+       * Find the _Fields constant that matches name, or null if its not found.
+       */
+      public static _Fields findByName(String name) {
+        return byName.get(name);
+      }
+
+      private final short _thriftId;
+      private final String _fieldName;
+
+      _Fields(short thriftId, String fieldName) {
+        _thriftId = thriftId;
+        _fieldName = fieldName;
+      }
+
+      public short getThriftFieldId() {
+        return _thriftId;
+      }
+
+      public String getFieldName() {
+        return _fieldName;
+      }
+    }
+
+    // isset id assignments
+    public static final Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> metaDataMap;
+    static {
+      Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> tmpMap = new EnumMap<_Fields, org.apache.thrift.meta_data.FieldMetaData>(_Fields.class);
+      tmpMap.put(_Fields.SUCCESS, new org.apache.thrift.meta_data.FieldMetaData("success", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+          new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRING)));
+      metaDataMap = Collections.unmodifiableMap(tmpMap);
+      org.apache.thrift.meta_data.FieldMetaData.addStructMetaDataMap(submitTask_result.class, metaDataMap);
+    }
+
+    public submitTask_result() {
+    }
+
+    public submitTask_result(
+      String success)
+    {
+      this();
+      this.success = success;
+    }
+
+    /**
+     * Performs a deep copy on <i>other</i>.
+     */
+    public submitTask_result(submitTask_result other) {
+      if (other.is_set_success()) {
+        this.success = other.success;
+      }
+    }
+
+    public submitTask_result deepCopy() {
+      return new submitTask_result(this);
+    }
+
+    @Override
+    public void clear() {
+      this.success = null;
+    }
+
+    public String get_success() {
+      return this.success;
+    }
+
+    public void set_success(String success) {
+      this.success = success;
+    }
+
+    public void unset_success() {
+      this.success = null;
+    }
+
+    /** Returns true if field success is set (has been assigned a value) and false otherwise */
+    public boolean is_set_success() {
+      return this.success != null;
+    }
+
+    public void set_success_isSet(boolean value) {
+      if (!value) {
+        this.success = null;
+      }
+    }
+
+    public void setFieldValue(_Fields field, Object value) {
+      switch (field) {
+      case SUCCESS:
+        if (value == null) {
+          unset_success();
+        } else {
+          set_success((String)value);
+        }
+        break;
+
+      }
+    }
+
+    public Object getFieldValue(_Fields field) {
+      switch (field) {
+      case SUCCESS:
+        return get_success();
+
+      }
+      throw new IllegalStateException();
+    }
+
+    /** Returns true if field corresponding to fieldID is set (has been assigned a value) and false otherwise */
+    public boolean isSet(_Fields field) {
+      if (field == null) {
+        throw new IllegalArgumentException();
+      }
+
+      switch (field) {
+      case SUCCESS:
+        return is_set_success();
+      }
+      throw new IllegalStateException();
+    }
+
+    @Override
+    public boolean equals(Object that) {
+      if (that == null)
+        return false;
+      if (that instanceof submitTask_result)
+        return this.equals((submitTask_result)that);
+      return false;
+    }
+
+    public boolean equals(submitTask_result that) {
+      if (that == null)
+        return false;
+
+      boolean this_present_success = true && this.is_set_success();
+      boolean that_present_success = true && that.is_set_success();
+      if (this_present_success || that_present_success) {
+        if (!(this_present_success && that_present_success))
+          return false;
+        if (!this.success.equals(that.success))
+          return false;
+      }
+
+      return true;
+    }
+
+    @Override
+    public int hashCode() {
+      HashCodeBuilder builder = new HashCodeBuilder();
+
+      boolean present_success = true && (is_set_success());
+      builder.append(present_success);
+      if (present_success)
+        builder.append(success);
+
+      return builder.toHashCode();
+    }
+
+    @Override
+    public int compareTo(submitTask_result other) {
+      if (!getClass().equals(other.getClass())) {
+        return getClass().getName().compareTo(other.getClass().getName());
+      }
+
+      int lastComparison = 0;
+
+      lastComparison = Boolean.valueOf(is_set_success()).compareTo(other.is_set_success());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (is_set_success()) {
+        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.success, other.success);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      return 0;
+    }
+
+    public _Fields fieldForId(int fieldId) {
+      return _Fields.findByThriftId(fieldId);
+    }
+
+    public void read(org.apache.thrift.protocol.TProtocol iprot) throws org.apache.thrift.TException {
+      schemes.get(iprot.getScheme()).getScheme().read(iprot, this);
+    }
+
+    public void write(org.apache.thrift.protocol.TProtocol oprot) throws org.apache.thrift.TException {
+      schemes.get(oprot.getScheme()).getScheme().write(oprot, this);
+      }
+
+    @Override
+    public String toString() {
+      StringBuilder sb = new StringBuilder("submitTask_result(");
+      boolean first = true;
+
+      sb.append("success:");
+      if (this.success == null) {
+        sb.append("null");
+      } else {
+        sb.append(this.success);
+      }
+      first = false;
+      sb.append(")");
+      return sb.toString();
+    }
+
+    public void validate() throws org.apache.thrift.TException {
+      // check for required fields
+      // check for sub-struct validity
+    }
+
+    private void writeObject(java.io.ObjectOutputStream out) throws java.io.IOException {
+      try {
+        write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
+      } catch (org.apache.thrift.TException te) {
+        throw new java.io.IOException(te);
+      }
+    }
+
+    private void readObject(java.io.ObjectInputStream in) throws java.io.IOException, ClassNotFoundException {
+      try {
+        read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
+      } catch (org.apache.thrift.TException te) {
+        throw new java.io.IOException(te);
+      }
+    }
+
+    private static class submitTask_resultStandardSchemeFactory implements SchemeFactory {
+      public submitTask_resultStandardScheme getScheme() {
+        return new submitTask_resultStandardScheme();
+      }
+    }
+
+    private static class submitTask_resultStandardScheme extends StandardScheme<submitTask_result> {
+
+      public void read(org.apache.thrift.protocol.TProtocol iprot, submitTask_result struct) throws org.apache.thrift.TException {
+        org.apache.thrift.protocol.TField schemeField;
+        iprot.readStructBegin();
+        while (true)
+        {
+          schemeField = iprot.readFieldBegin();
+          if (schemeField.type == org.apache.thrift.protocol.TType.STOP) { 
+            break;
+          }
+          switch (schemeField.id) {
+            case 0: // SUCCESS
+              if (schemeField.type == org.apache.thrift.protocol.TType.STRING) {
+                struct.success = iprot.readString();
+                struct.set_success_isSet(true);
+              } else { 
+                org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+              }
+              break;
+            default:
+              org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+          }
+          iprot.readFieldEnd();
+        }
+        iprot.readStructEnd();
+        struct.validate();
+      }
+
+      public void write(org.apache.thrift.protocol.TProtocol oprot, submitTask_result struct) throws org.apache.thrift.TException {
+        struct.validate();
+
+        oprot.writeStructBegin(STRUCT_DESC);
+        if (struct.success != null) {
+          oprot.writeFieldBegin(SUCCESS_FIELD_DESC);
+          oprot.writeString(struct.success);
+          oprot.writeFieldEnd();
+        }
+        oprot.writeFieldStop();
+        oprot.writeStructEnd();
+      }
+
+    }
+
+    private static class submitTask_resultTupleSchemeFactory implements SchemeFactory {
+      public submitTask_resultTupleScheme getScheme() {
+        return new submitTask_resultTupleScheme();
+      }
+    }
+
+    private static class submitTask_resultTupleScheme extends TupleScheme<submitTask_result> {
+
+      @Override
+      public void write(org.apache.thrift.protocol.TProtocol prot, submitTask_result struct) throws org.apache.thrift.TException {
+        TTupleProtocol oprot = (TTupleProtocol) prot;
+        BitSet optionals = new BitSet();
+        if (struct.is_set_success()) {
+          optionals.set(0);
+        }
+        oprot.writeBitSet(optionals, 1);
+        if (struct.is_set_success()) {
+          oprot.writeString(struct.success);
+        }
+      }
+
+      @Override
+      public void read(org.apache.thrift.protocol.TProtocol prot, submitTask_result struct) throws org.apache.thrift.TException {
         TTupleProtocol iprot = (TTupleProtocol) prot;
         BitSet incoming = iprot.readBitSet(1);
         if (incoming.get(0)) {

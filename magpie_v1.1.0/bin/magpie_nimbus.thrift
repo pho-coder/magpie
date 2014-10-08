@@ -18,11 +18,13 @@ namespace java com.jd.magpie.generated
 
 service Nimbus {
 
-  string submitTopology(1: string id, 2: string jar, 3: string klass, 4: string group, 5: string type)
+  string submitTopology(1: string id, 2: string jar, 3: string klass)
   string killTopology(1: string id)
   string pauseTopology(1: string id)
   string activeTopology(1: string id)
   string reloadTopology(1: string id)
+
+  string submitTask(1: string id, 2: string jar, 3: string klass, 4: string group, 5: string type)
 
 }
 
