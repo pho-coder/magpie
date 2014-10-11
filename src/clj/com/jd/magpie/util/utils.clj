@@ -177,12 +177,14 @@
         memory (sig/os-memory)
         total-memory (quot (:total memory) mill)
         actual-free-memory (quot (:actual-free memory) mill)
+        memory-score (quot (* actual-free-memory 100) total-memory)
         swap (sig/os-swap)
         total-swap (quot (:total swap) mill)
         free-swap (quot (:free swap) mill)
         cpu-core (count (sig/cpu))
-        load-avg (first (sig/os-load-avg))]
-    {"total-memory" total-memory "free-memory" actual-free-memory "total-swap" total-swap "free-swap" free-swap "load-avg" load-avg "cpu-core" cpu-core}))
+        load-avg (first (sig/os-load-avg))
+        cpu-score (quot (* load-avg 100) cpu-core)]
+    {"total-memory" total-memory "free-memory" actual-free-memory "memory-score" memory-score "total-swap" total-swap "free-swap" free-swap "load-avg" load-avg "cpu-core" cpu-core "cpu-score" cpu-score}))
 
 (defn system-resources-enough?
   [jvm-mem-size]
