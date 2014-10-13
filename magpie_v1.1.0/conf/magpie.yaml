@@ -10,13 +10,14 @@ magpie.zookeeper.retry.interval.millis: 1000
 magpie.zookeeper.retry.times: 5
 magpie.zookeeper.retry.intervalceiling.millis: 30000
 
-magpie.floor.score: 256
+magpie.floor.score: 2
 magpie.jars.dir: /tmp/magpie/jars
 magpie.pids.dir: /tmp/magpie/pids
 magpie.logs.dir: /tmp/magpie/logs
 magpie.heartbeat.interval.millis: 1000
 magpie.schedule.interval.millis: 1000
 magpie.schedule.timeout.millis: 60000
+magpie.net-bandwidth-calculate.interval.millis: 30000
 
 magpie.worker.childopts: "-Xmx768m"
 

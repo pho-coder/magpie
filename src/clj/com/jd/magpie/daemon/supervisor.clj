@@ -7,8 +7,6 @@
             [clojure.tools.logging :as log])
   (:use [com.jd.magpie.bootstrap]))
 
-(def NET-BANDWIDTH-INTERVAL-TIME-MILLIS 30000)
-
 (def network-usage (atom {:rx-bytes nil
                           :tx-bytes nil
                           :rx-net-bandwidth nil
@@ -94,7 +92,7 @@
             (utils/ensure-process-killed! (get-pid node))
             (utils/rmr (get-pid-dir node))))))))
 
-(defn get-net-bandwidth []
+(defn get-net-bandwidth [calculate-interval max-net-bandwidth]
   (let [mill (* 1024 1024)
         time-millis-now (utils/current-time-millis)
         net-usage (utils/network-usage)
@@ -111,7 +109,7 @@
            "tx-net-bandwidth" (:tx-net-bandwidth network-usage-now)})
       (if (not (> (- time-millis-now
                      (:time-millis network-usage-now))
-                  NET-BANDWIDTH-INTERVAL-TIME-MILLIS))
+                  calculate-interval))
         {"rx-net-bandwidth" (:rx-net-bandwidth network-usage-now)
          "tx-net-bandwidth" (:tx-net-bandwidth network-usage-now)}
         (let [rx-net-bandwidth (quot (/ (- rx-bytes
@@ -132,12 +130,17 @@
                                  :rx-net-bandwidth rx-net-bandwidth
                                  :tx-net-bandwidth tx-net-bandwidth})
           {"rx-net-bandwidth" rx-net-bandwidth
-           "tx-net-bandwidth" tx-net-bandwidth})))))
+           "tx-net-bandwidth" tx-net-bandwidth
+           "net-bandwidth-score" (quot (* 100 (- max-net-bandwidth (if (> rx-net-bandwidth tx-net-bandwidth)
+                                                                     rx-net-bandwidth
+                                                                     tx-net-bandwidth)))
+                                       max-net-bandwidth)})))))
   
 (defn launch-server! [conf]
   (let [zk-handler (zookeeper/mk-client conf (conf MAGPIE-ZOOKEEPER-SERVERS) (conf MAGPIE-ZOOKEEPER-PORT) :root (conf MAGPIE-ZOOKEEPER-ROOT))
         heartbeat-interval (/ (conf MAGPIE-HEARTBEAT-INTERVAL 2000) 1000)
         schedule-check-interval (/ (conf MAGPIE-SCHEDULE-INTERVAL 5000) 1000)
+        net-bandwidth-calculate-interval (conf MAGPIE-NET-BANDWIDTH-CALCULATE-INTERVAL 30000)
         supervisor-path "/supervisors"
         hostname (utils/hostname)
         pid (utils/process-pid)
@@ -150,8 +153,8 @@
                      new-uuid)))
         supervisor-id (str hostname "-" uuid)
         supervisor-node (str supervisor-path "/" supervisor-id)
-        supervisor-group (get conf MAGPIE-SUPERVISOR-GROUP "default")
-        supervisor-max-net-bandwidth (get conf MAGPIE-SUPERVISOR-MAX-NET-BANDWIDTH 100)
+        supervisor-group (conf MAGPIE-SUPERVISOR-GROUP "default")
+        supervisor-max-net-bandwidth (conf MAGPIE-SUPERVISOR-MAX-NET-BANDWIDTH 100)
         supervisor-info {"ip" (utils/ip) "hostname" (utils/hostname) "username" (utils/username) "pid" pid "group" supervisor-group "max-net-bandwidth" supervisor-max-net-bandwidth}
         heartbeat-timer (timer/mk-timer)
         schedule-timer (timer/mk-timer)]
@@ -161,11 +164,11 @@
                                                       (.close zk-handler))))
     (log/info "Starting supervisor...")
     (config/init-zookeeper zk-handler)
-    (zookeeper/create-node zk-handler supervisor-node (utils/object->bytes (conj supervisor-info (utils/resources-info) (get-net-bandwidth))) :ephemeral)
+    (zookeeper/create-node zk-handler supervisor-node (utils/object->bytes (conj supervisor-info (utils/resources-info) (get-net-bandwidth net-bandwidth-calculate-interval supervisor-max-net-bandwidth))) :ephemeral)
     (timer/schedule-recurring heartbeat-timer 10 heartbeat-interval
                               (fn []
                                 (try
-                                  (zookeeper/set-data zk-handler supervisor-node (utils/object->bytes (conj supervisor-info (utils/resources-info) (get-net-bandwidth))))
+                                  (zookeeper/set-data zk-handler supervisor-node (utils/object->bytes (conj supervisor-info (utils/resources-info) (get-net-bandwidth net-bandwidth-calculate-interval supervisor-max-net-bandwidth))))
                                   (catch Exception e
                                     (log/error e "error accurs in supervisor heartbeat timer..")
                                     (System/exit -1)))))
