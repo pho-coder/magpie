@@ -17,18 +17,35 @@
 (defn get-all-supervisors [zk-handler supervisor-path group]
   (let [supervisors (zookeeper/get-children zk-handler supervisor-path false)
         supervisor-infos (map #(utils/bytes->map (zookeeper/get-data zk-handler (str supervisor-path "/" %) false)) supervisors)
-        supervisors-of-the-group (filter #(if (nil? %) false true) (map (fn [x y] (if (= (get y "group") group)
-                                                                                   [x y]
-                                                                                   nil)) supervisor-infos))]
+        supervisors-of-the-group (filter #(if (nil? %) false true) (map (fn [supervisor] (if (= (get supervisor "group") group)
+                                                                                          supervisor
+                                                                                          nil)) supervisor-infos))]
     (log/debug "supervisor info:" supervisor-infos)
     (log/debug "supervisors of the group:" supervisors-of-the-group)
-    [(map #(first %) supervisors-of-the-group) (map #(second %) supervisors-of-the-group)]))
+    supervisors-of-the-group))
 
-(defn get-best [zk-handler supervisor-path group type]
-  (let [[supervisors supervisor-infos] (get-all-supervisors zk-handler supervisor-path group)]
-    (if (empty? supervisors)
+(defn get-best [zk-handler supervisor-path group type floor-score]
+  (let [supervisor-infos (get-all-supervisors zk-handler supervisor-path group)
+        MAX-SCORE 100]
+    (if (empty? supervisor-infos)
       nil
-      (if (= (count supervisors) 1)
+      (let [supervisors-good (filter (fn [supervisor] (let [memory-score (if-let [score (get supervisor "memory-score")]
+                                                                          score
+                                                                          0)
+                                                           cpu-score (if-let [score (get supervisor "cpu-score")]
+                                                                       score
+                                                                       0)
+                                                           net-bandwidth-score (if-let [score (get supervisor "net-bandwidth-score")]
+                                                                                 score
+                                                                                 0)]
+                                                       (if (and (and (>= memory-score floor-score) (<= memory-score MAX-SCORE))
+                                                                (and (>= cpu-score floor-score) (<= cpu-score MAX-SCORE))
+                                                                (and (>= net-bandwidth-score floor-score) (<= net-bandwidth-score MAX-SCORE)))
+                                                         true
+                                                         false))) supervisor-infos)]
+        ;;
+        )
+      (if (= (count supervisor-infos) 1)
         [(first supervisors) (get (first supervisor-infos) (case type
                                                              "memory" "free-memory"
                                                              "free-memory"))]
@@ -45,13 +62,13 @@
         command-path "/commands"
         node id
         task-path (str assignment-path "/" node)]
-    (if-let [[best-supervisor score] (get-best zk-handler supervisor-path group type)]
-      (if (> score floor-score)
+    (if-let [best-supervisor (get-best zk-handler supervisor-path group type floor-score)]
+      (if (nil? best-supervisor)
+        (do (zookeeper/set-data zk-handler (str command-path "/" node) (utils/object->bytes {"command" "wait" "time" (utils/current-time-millis)}))
+            (log/warn "resource not enough, this task will be waiting. (topology id='" id "')"))
         (do (zookeeper/set-data zk-handler (str command-path "/" node) (utils/object->bytes {"command" "run" "time" (utils/current-time-millis)}))
             (zookeeper/set-data zk-handler task-path (utils/object->bytes {"start-time" (utils/current-time-millis) "jar" jar "class" klass "id" id "group" group "type" type "supervisor" best-supervisor "last-supervisor" last-supervisor}))
-            (log/info "submit task successfully, (topology id='" id "')"))
-        (do (zookeeper/set-data zk-handler (str command-path "/" node) (utils/object->bytes {"command" "wait" "time" (utils/current-time-millis)}))
-            (log/warn "resource not enough, this task will be waiting. (topology id='" id "')")))
+            (log/info "submit task successfully, (topology id='" id "')")))
       (log/error "no supervisor in group" group "is running, this task will not be run, please check...(topology id='" id "')"))))
 
 (defn clear-topology [zk-handler node]
