@@ -28,7 +28,8 @@
   (let [supervisor-infos (get-all-supervisors zk-handler supervisor-path group)
         MAX-SCORE 100]
     (if (empty? supervisor-infos)
-      nil
+      (do (log/error "no supervisor in group" group "is running, this task will not be run, please check...")
+          nil)
       (let [supervisors-good (filter (fn [supervisor] (let [memory-score (if-let [score (get supervisor "memory-score")]
                                                                           score
                                                                           0)
@@ -43,18 +44,18 @@
                                                                 (and (>= net-bandwidth-score floor-score) (<= net-bandwidth-score MAX-SCORE)))
                                                          true
                                                          false))) supervisor-infos)]
-        ;;
-        )
-      (if (= (count supervisor-infos) 1)
-        [(first supervisors) (get (first supervisor-infos) (case type
-                                                             "memory" "free-memory"
-                                                             "free-memory"))]
-        (reduce (fn [a b] (if (> (second a) (second b))
-                           a
-                           b))
-                (map (fn [s i] [s (get i (case type
-                                          "memory" "free-memory"
-                                          "free-memory"))]) supervisors supervisor-infos))))))
+        (if (empty? supervisors-good)
+          (do (log/warn "no supervisor has enough resource in group" group)
+              nil)
+          (get (reduce (fn [one two]
+                         (let [score-type (case type
+                                            "memory" "memory-score"
+                                            "cpu" "cpu-score"
+                                            "network" "net-bandwidth-score"
+                                            "memory-score")]
+                           (if (>= (get one score-type) (get two score-type))
+                             one
+                             two))) supervisors-good) "id"))))))
 
 (defn assign [zk-handler id jar klass group type floor-score & {:keys [last-supervisor]}]
   (let [supervisor-path "/supervisors"
@@ -63,13 +64,11 @@
         node id
         task-path (str assignment-path "/" node)]
     (if-let [best-supervisor (get-best zk-handler supervisor-path group type floor-score)]
-      (if (nil? best-supervisor)
-        (do (zookeeper/set-data zk-handler (str command-path "/" node) (utils/object->bytes {"command" "wait" "time" (utils/current-time-millis)}))
-            (log/warn "resource not enough, this task will be waiting. (topology id='" id "')"))
-        (do (zookeeper/set-data zk-handler (str command-path "/" node) (utils/object->bytes {"command" "run" "time" (utils/current-time-millis)}))
-            (zookeeper/set-data zk-handler task-path (utils/object->bytes {"start-time" (utils/current-time-millis) "jar" jar "class" klass "id" id "group" group "type" type "supervisor" best-supervisor "last-supervisor" last-supervisor}))
-            (log/info "submit task successfully, (topology id='" id "')")))
-      (log/error "no supervisor in group" group "is running, this task will not be run, please check...(topology id='" id "')"))))
+      (do (zookeeper/set-data zk-handler (str command-path "/" node) (utils/object->bytes {"command" "run" "time" (utils/current-time-millis)}))
+          (zookeeper/set-data zk-handler task-path (utils/object->bytes {"start-time" (utils/current-time-millis) "jar" jar "class" klass "id" id "group" group "type" type "supervisor" best-supervisor "last-supervisor" last-supervisor}))
+          (log/info "submit task successfully, (topology id='" id "')"))
+      (do (zookeeper/set-data zk-handler (str command-path "/" node) (utils/object->bytes {"command" "wait" "time" (utils/current-time-millis)}))
+          (log/warn "resource not enough, this task will be waiting. (topology id='" id "')")))))
 
 (defn clear-topology [zk-handler node]
   (let [assignment-path "/assignments"
