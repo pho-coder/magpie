@@ -11,6 +11,7 @@
                           :tx-bytes nil
                           :rx-net-bandwidth nil
                           :tx-net-bandwidth nil
+                          :net-bandwidth-score nil
                           :time-millis nil}))
 
 (defn get-my-jobs [zk-handler supervisor-id]
@@ -104,14 +105,17 @@
                                  :rx-bytes rx-bytes
                                  :tx-bytes tx-bytes
                                  :rx-net-bandwidth nil
-                                 :tx-net-bandwidth nil})
+                                 :tx-net-bandwidth nil
+                                 :net-bandwidth-score nil})
           {"rx-net-bandwidth" (:rx-net-bandwidth network-usage-now)
-           "tx-net-bandwidth" (:tx-net-bandwidth network-usage-now)})
+           "tx-net-bandwidth" (:tx-net-bandwidth network-usage-now)
+           "net-bandwidth-score" (:net-bandwidth-score network-usage-now)})
       (if (not (> (- time-millis-now
                      (:time-millis network-usage-now))
                   calculate-interval))
         {"rx-net-bandwidth" (:rx-net-bandwidth network-usage-now)
-         "tx-net-bandwidth" (:tx-net-bandwidth network-usage-now)}
+         "tx-net-bandwidth" (:tx-net-bandwidth network-usage-now)
+         "net-bandwidth-score" (:net-bandwidth-score network-usage-now)}
         (let [rx-net-bandwidth (quot (/ (- rx-bytes
                                            (:rx-bytes network-usage-now))
                                         mill)
@@ -123,20 +127,43 @@
                                         mill)
                                      (/ (- time-millis-now
                                            (:time-millis network-usage-now))
-                                        1000))]
+                                        1000))
+              net-bandwidth-score (quot (* 100 (- max-net-bandwidth (if (> rx-net-bandwidth tx-net-bandwidth)
+                                                                      rx-net-bandwidth
+                                                                      tx-net-bandwidth)))
+                                        max-net-bandwidth)]
           (reset! network-usage {:time-millis time-millis-now
                                  :rx-bytes rx-bytes
                                  :tx-bytes tx-bytes
                                  :rx-net-bandwidth rx-net-bandwidth
-                                 :tx-net-bandwidth tx-net-bandwidth})
+                                 :tx-net-bandwidth tx-net-bandwidth
+                                 :net-bandwidth-score net-bandwidth-score})
           {"rx-net-bandwidth" rx-net-bandwidth
            "tx-net-bandwidth" tx-net-bandwidth
-           "net-bandwidth-score" (quot (* 100 (- max-net-bandwidth (if (> rx-net-bandwidth tx-net-bandwidth)
-                                                                     rx-net-bandwidth
-                                                                     tx-net-bandwidth)))
-                                       max-net-bandwidth)})))))
-  
+           "net-bandwidth-score" net-bandwidth-score})))))
+
+(defn check-env [conf]
+  (log/info "check env!")
+  (let [jars-dir (conf MAGPIE-JARS-DIR)
+        pids-dir (conf MAGPIE-PIDS-DIR)
+        logs-dir (conf MAGPIE-LOGS-DIR)]
+    (if (or (nil? jars-dir) (nil? pids-dir) (nil? logs-dir))
+      (do (log/error "magpie.jars.dir, magpie.pids.dir or magpie.logs.dir is null! check magpie.yaml!")
+          (System/exit -1)))
+    (if (or (not (.startsWith jars-dir "/")) (not (.startsWith pids-dir "/")) (not (.startsWith logs-dir "/")))
+      (do (log/error "magpie.jars.dir, magpie.pids.dir or magpie.logs.dir must be absolute path! check magpie.yaml!")
+          (System/exit -1)))
+    (try
+      (utils/local-mkdirs jars-dir)
+      (utils/local-mkdirs pids-dir)
+      (utils/local-mkdirs logs-dir)
+      (catch Exception e
+        (log/error (.toString e))
+        (System/exit -1)))
+    (log/info "finish checking env!")))
+
 (defn launch-server! [conf]
+  (check-env conf)
   (let [zk-handler (zookeeper/mk-client conf (conf MAGPIE-ZOOKEEPER-SERVERS) (conf MAGPIE-ZOOKEEPER-PORT) :root (conf MAGPIE-ZOOKEEPER-ROOT))
         heartbeat-interval (/ (conf MAGPIE-HEARTBEAT-INTERVAL 2000) 1000)
         schedule-check-interval (/ (conf MAGPIE-SCHEDULE-INTERVAL 5000) 1000)
@@ -155,7 +182,7 @@
         supervisor-node (str supervisor-path "/" supervisor-id)
         supervisor-group (conf MAGPIE-SUPERVISOR-GROUP "default")
         supervisor-max-net-bandwidth (conf MAGPIE-SUPERVISOR-MAX-NET-BANDWIDTH 100)
-        supervisor-info {"ip" (utils/ip) "hostname" (utils/hostname) "username" (utils/username) "pid" pid "group" supervisor-group "max-net-bandwidth" supervisor-max-net-bandwidth}
+        supervisor-info {"id" supervisor-id "ip" (utils/ip) "hostname" (utils/hostname) "username" (utils/username) "pid" pid "group" supervisor-group "max-net-bandwidth" supervisor-max-net-bandwidth}
         heartbeat-timer (timer/mk-timer)
         schedule-timer (timer/mk-timer)]
     (.addShutdownHook (Runtime/getRuntime) (Thread. (fn []

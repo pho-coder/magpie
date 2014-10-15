@@ -6,3 +6,5 @@ pom.xml
 *.tar.gz
 .lein-deps-sum
 logs/
+.lein-repl-history
+.lein-failures

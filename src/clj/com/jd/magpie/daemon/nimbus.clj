@@ -19,7 +19,7 @@
         supervisor-infos (map #(utils/bytes->map (zookeeper/get-data zk-handler (str supervisor-path "/" %) false)) supervisors)
         supervisors-of-the-group (filter #(if (nil? %) false true) (map (fn [x y] (if (= (get y "group") group)
                                                                                    [x y]
-                                                                                   nil)) supervisors supervisor-infos))]
+                                                                                   nil)) supervisor-infos))]
     (log/debug "supervisor info:" supervisor-infos)
     (log/debug "supervisors of the group:" supervisors-of-the-group)
     [(map #(first %) supervisors-of-the-group) (map #(second %) supervisors-of-the-group)]))
@@ -68,11 +68,10 @@
       (zookeeper/delete-node zk-handler (str status-path "/" node))
       (catch Exception e))))
 
-(defn submit-task [conf zk-handler id jar klass group type]
+(defn submit-task [conf zk-handler id jar klass floor-score group type]
   (let [assignment-path "/assignments"
         status-path "/status"
         command-path "/commands"
-        floor-score (conf MAGPIE-FLOOR-SCORE 256)
         result (atom "submit failure!")]
           (try
             (let [node id
@@ -101,16 +100,16 @@
   (let [assignment-path "/assignments"
         status-path "/status"
         command-path "/commands"
-        floor-score (conf MAGPIE-FLOOR-SCORE 256)]
+        floor-score (conf MAGPIE-FLOOR-SCORE 20)]
     
     (reify Nimbus$Iface
       (^String submitTopology
         [this ^String id ^String jar ^String klass]
-        (submit-task conf zk-handler id jar klass "default" "memory"))
+        (submit-task zk-handler id jar klass floor-score "default" "memory"))
       
       (^String submitTask
         [this ^String id ^String jar ^String klass ^String group ^String type]
-        (submit-task conf zk-handler id jar klass group type))
+        (submit-task zk-handler id jar klass floor-score group type))
       
       (^String killTopology
         [this ^String id]
@@ -198,7 +197,7 @@
         heartbeat-timer (timer/mk-timer)
         workerbeat-timer (timer/mk-timer)
         service-handler# (service-handler conf zk-handler)
-        floor-score (conf MAGPIE-FLOOR-SCORE 256)
+        floor-score (conf MAGPIE-FLOOR-SCORE 20)
         options (-> (TNonblockingServerSocket. (int (conf NIMBUS-THRIFT-PORT)))
                     (THsHaServer$Args.)
                     (.workerThreads 64)

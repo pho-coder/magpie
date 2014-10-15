@@ -1,15 +1,3 @@
-          jars (.list dir (reify FilenameFilter
-                            (accept [this dir name]
-                              (and (.startsWith name prefix) (.endsWith name suffix)))))
-          versions (map #(clojure.string/split (subs % (count prefix) (- (count %) (count suffix))) #"\.") jars)]
-      (when (and (.exists dir) jars)
-        (str prefix (clojure.string/join "." (reduce (fn [a b] (let [v1 (map #(Integer/parseInt %) a)
-                                                                    v2 (map #(Integer/parseInt %) b)]
-                                                                (loop [t1 v1
-                                                                       t2 v2]
-                                                                  (if (empty? t1)
-                                                                    b
-                                                                    (if (empty? t2)
                                                                       a
                                                                       (if (> (first t1) (first t2))
                                                                         a
@@ -498,3 +486,15 @@ get-resources-url-func (fn [] (utils/bytes->string (zookeeper/get-data zk-handle
 (download "http://192.168.214.123:8080/magpie/magpie-mysql-parser-1.0-standalone.jarabc" "/tmp/")
 a
 exit
+(require '[com.jd.magpie.util.utils :as utils])
+(utils/local-mkdirs "/tmp/a")
+(utils/local-mkdirs "/tmp/b/d")
+(def a "dfdf")
+(.startswith a "d")
+(.startwith a "d")
+(.startsWith a "d")
+(def b nil)
+(.startsWith b "d")
+b
+(nil? b)
+quit
