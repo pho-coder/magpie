@@ -84,11 +84,8 @@
       (zookeeper/delete-node zk-handler (str status-path "/" node))
       (catch Exception e))))
 
-(defn submit-task [conf zk-handler id jar klass floor-score group type]
-  (let [assignment-path "/assignments"
-        status-path "/status"
-        command-path "/commands"
-        result (atom "submit failure!")]
+(defn submit-task [zk-handler id jar klass floor-score group type  assignment-path status-path command-path]
+  (let [result (atom "submit failure!")]
           (try
             (let [node id
                   task-path (str assignment-path "/" node)
@@ -112,6 +109,31 @@
               (log/error @result)))
           @result))
 
+(defn operate-task [zk-handler id command assignment-path status-path command-path]
+  (let [commands (hash-set "kill" "pause" "active" "reload")]
+    (if (not (contains? commands command))
+      (str command " command is unsupported!")
+      (let [result (atom (str command " failure!"))]
+        (try
+          (let [node id
+                task-path (str assignment-path "/" node)
+                command-str (case command
+                              "kill" "kill"
+                              "pause" "pause"
+                              "active" "run"
+                              "reload" "reload")
+                running? (zookeeper/exists-node? zk-handler task-path false)]
+            (if running?
+              (do (zookeeper/set-data zk-handler (str command-path "/" node) (utils/object->bytes {"command" command-str "time" (utils/current-time-millis)}))
+                  (reset! result (str command " successfully!, (task id='" id "')"))
+                  (log/info @result))
+              (do (reset! result (str "task is not running, (task id='" id "')"))
+                  (log/error @result))))
+          (catch Throwable e
+            (reset! result (str e "Task " command " exception. (task id='" id "')"))
+            (log/error @result)))
+        @result))))
+
 (defn service-handler [conf zk-handler]
   (let [assignment-path "/assignments"
         status-path "/status"
@@ -121,82 +143,31 @@
     (reify Nimbus$Iface
       (^String submitTopology
         [this ^String id ^String jar ^String klass]
-        (submit-task zk-handler id jar klass floor-score "default" "memory"))
-      
-      (^String submitTask
-        [this ^String id ^String jar ^String klass ^String group ^String type]
-        (submit-task zk-handler id jar klass floor-score group type))
+        (submit-task zk-handler id jar klass floor-score "default" "memory" assignment-path status-path command-path))
       
       (^String killTopology
         [this ^String id]
-        (let [result (atom "killed failure!")]
-          (try
-            (let [node id
-                  task-path (str assignment-path "/" node)
-                  running? (zookeeper/exists-node? zk-handler task-path false)]
-              (if running?
-                (do (zookeeper/set-data zk-handler (str command-path "/" node) (utils/object->bytes {"command" "kill" "time" (utils/current-time-millis)}))
-                    (reset! result (str "killed successfully!, (task id='" id "')"))
-                    (log/info @result))
-                (do (reset! result (str "topology is not running, (topology id='" id "')"))
-                    (log/error @result))))
-            (catch Throwable e
-              (reset! result (str e "Topology kill exception. (topology id='" id "')"))
-              (log/error @result)))
-          @result))
+        (operate-task zk-handler id "kill" assignment-path status-path command-path))
       
       (^String pauseTopology
         [this ^String id]
-        (let [result (atom "paused failure!")]
-          (try
-            (let [node id
-                  task-path (str assignment-path "/" node)
-                  running? (zookeeper/exists-node? zk-handler task-path false)]
-              (if running?
-                (do (zookeeper/set-data zk-handler (str command-path "/" node) (utils/object->bytes {"command" "pause" "time" (utils/current-time-millis)}))
-                    (reset! result (str "pause successfully, (topology id='" id "')"))
-                    (log/info @result))
-                (do (reset! result (str "topology is not running, (topology id='" id "')"))
-                    (log/error @result))))
-            (catch Throwable e
-              (reset! result (str e "Topology pause exception. (topology id='" id "')"))
-              (log/error @result)))
-          @result))
+        (operate-task zk-handler id "pause" assignment-path status-path command-path))
 
       (^String activeTopology
         [this ^String id]
-        (let [result (atom "active failure!")]
-          (try
-            (let [node id
-                  task-path (str assignment-path "/" node)
-                  running? (zookeeper/exists-node? zk-handler task-path false)]
-              (if running?
-                (do (zookeeper/set-data zk-handler (str command-path "/" node) (utils/object->bytes {"command" "run" "time" (utils/current-time-millis)}))
-                    (reset! result (str "active successfully, (topology id='" id "')"))
-                    (log/info @result))
-                (do (reset! result (str "topology is not running, (topology id='" id "')"))
-                    (log/error result))))
-            (catch Throwable e
-              (reset! result (str e "Topology active exception. (topology id='" id "')"))
-              (log/error @result)))
-          @result))
+        (operate-task zk-handler id "active" assignment-path status-path command-path))
       
       (^String reloadTopology
         [this ^String id]
-        (let [result (atom "reload failure!")]
-          (try
-            (let [node id
-                  task-path (str assignment-path "/" node)
-                  running? (zookeeper/exists-node? zk-handler task-path false)]
-              (if running?
-                (zookeeper/set-data zk-handler (str command-path "/" node) (utils/object->bytes {"command" "reload" "time" (utils/current-time-millis)}))
-                (do (reset! result (str "topology is not running, (topology id='" id "')"))
-                    (log/error @result))))
-            (catch Throwable e
-              (reset! result (str e "Topology reload exception. (topology id='" id "')"))
-              (log/error @result)))
-          @result))
-      )))
+        (operate-task zk-handler id "reload" assignment-path status-path command-path))
+      
+      (^String submitTask
+        [this ^String id ^String jar ^String klass ^String group ^String type]
+        (submit-task zk-handler id jar klass floor-score group type assignment-path status-path command-path))
+
+      (^String operateTask
+        [this ^String id ^String command]
+        (operate-task zk-handler id command assignment-path status-path command-path)))))
 
 (defn launch-server! [conf]
   (let [zk-handler (zookeeper/mk-client conf (conf MAGPIE-ZOOKEEPER-SERVERS) (conf MAGPIE-ZOOKEEPER-PORT) :root (conf MAGPIE-ZOOKEEPER-ROOT))
