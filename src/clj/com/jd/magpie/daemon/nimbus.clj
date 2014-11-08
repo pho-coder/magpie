@@ -179,7 +179,7 @@
         command-path "/commands"
         heartbeat-interval (/ (conf MAGPIE-HEARTBEAT-INTERVAL 2000) 1000)
         schedule-check-interval (/ (conf MAGPIE-SCHEDULE-INTERVAL 5000) 1000)
-        _ (config/init-zookeeper zk-handler)        
+        _ (config/init-zookeeper zk-handler)
         nimbus-info {"ip" (utils/ip) "hostname" (utils/hostname) "username" (utils/username) "port" (int (conf NIMBUS-THRIFT-PORT))}
         heartbeat-timer (timer/mk-timer)
         workerbeat-timer (timer/mk-timer)
