@@ -126,7 +126,10 @@
            result {}]
       (if flag
         (let [k (.next iterator)
-              v (.get json k)]
+              v (let [v# (.get json k)]
+                  (if (.isNull json k)
+                    nil
+                    v#))]
           (recur (.hasNext iterator) (conj result {k v})))
         result))))
 

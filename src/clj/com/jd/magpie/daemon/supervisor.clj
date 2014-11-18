@@ -14,13 +14,27 @@
                           :net-bandwidth-score nil
                           :time-millis nil}))
 
-(defn get-my-jobs [zk-handler supervisor-id]
+(defn bak-get-my-jobs [zk-handler supervisor-id]
   (let [assignment-path "/assignments"
         assignments (zookeeper/get-children zk-handler assignment-path false)
         assignment-infos (map #(conj (utils/bytes->map (zookeeper/get-data zk-handler (str assignment-path "/" %) false)) {"node" %}) assignments)]
     (if (empty? assignments)
       []
       (filter #(= supervisor-id (get % "supervisor")) assignment-infos))))
+
+(defn get-my-jobs [zk-handler supervisor-id]
+  (let [assignment-path "/assignments"
+        assignments (zookeeper/get-children zk-handler assignment-path false)]
+    (if (empty? assignments)
+      []
+      (filter #(not (nil? %)) (map (fn [task-id]
+                                     (let [zk-data (zookeeper/get-data zk-handler (str assignment-path "/" task-id) false)]
+                                       (if (nil? zk-data)
+                                         nil
+                                         (let [zk-data-map (utils/bytes->map zk-data)]
+                                           (if (= supervisor-id (get zk-data-map "supervisor"))
+                                             (conj zk-data-map {"node" task-id})
+                                             nil))))) assignments)))))
 
 (defn launch-job [conf job-info get-resources-url-func]
   (let [jars-dir (conf MAGPIE-JARS-DIR)
@@ -85,9 +99,10 @@
       (let [node (job-info "node")
             pid-dir (get-pid-dir node)]
         (if-not (utils/exists-file? pid-dir)
-          (let [command ((utils/bytes->map (zookeeper/get-data zk-handler (str command-path "/" node) false)) "command")]
-            (when (and command (not= command "kill"))
-              (launch-job conf job-info get-resources-url-func)))
+          (if-let [zk-data (zookeeper/get-data zk-handler (str command-path "/" node) false)]
+            (let [command ((utils/bytes->map zk-data) "command")]
+              (when (and command (not= command "kill"))
+                (launch-job conf job-info get-resources-url-func))))
           (when-not (utils/process-running? (get-pid node))
             (log/error "process is not running well....")
             (utils/ensure-process-killed! (get-pid node))
