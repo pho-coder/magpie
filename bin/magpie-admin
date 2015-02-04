@@ -64,15 +64,15 @@ function stop_server() {
 function restart_server() {
     if [[ "$@"x = "nimbuses"x ]]; then
         echo "restart nimbuses"
-        stop_server;
+        stop_server $@;
         sleep 1;
-        start_server;
+        start_server $@;
     fi
     if [[ "$@"x = "supervisors"x ]]; then
         echo "restart supervisors"
-        stop_server;
+        stop_server $@;
         sleep 1;
-        start_server;
+        start_server $@;
     fi
 }
 
