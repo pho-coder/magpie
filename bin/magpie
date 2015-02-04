@@ -46,8 +46,8 @@ function start_server() {
 	nohup "$RUNNER" $MAGPIE_HEAP_OPTS -cp "$CLASSPATH" -Djava.library.path="$MAGPIE_NATIVE_DIR" -Dmagpie.configuration="$MAGPIE_CONF_DIR" -Dlog4j.configuration=magpie.log4j.properties -Dmagpie.home="$MAGPIE_HOME" -Dmagpie.project="$MAGPIE_PROJECT" com.jd.magpie.daemon.${MAGPIE_PROJECT} "$@" > "$MAGPIE_LOG_DIR"/"$MAGPIE_PROJECT".out 2>&1 < /dev/null &
 	echo $! > $PID_FILE
     	chmod 755 $PID_FILE
-	sleep 1;
-	tail -f "$MAGPIE_LOG_DIR"/${MAGPIE_PROJECT}.log
+#	sleep 1;
+#	tail -f "$MAGPIE_LOG_DIR"/${MAGPIE_PROJECT}.log
 }
 
 function stop_server() {
