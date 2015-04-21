@@ -66,6 +66,7 @@
     (if-let [best-supervisor (get-best zk-handler supervisor-path group type floor-score)]
       (do (zookeeper/set-data zk-handler (str command-path "/" node) (utils/object->bytes {"command" "run" "time" (utils/current-time-millis)}))
           (zookeeper/set-data zk-handler task-path (utils/object->bytes {"start-time" (utils/current-time-millis) "jar" jar "class" klass "id" id "group" group "type" type "supervisor" best-supervisor "last-supervisor" last-supervisor}))
+          (zookeeper/create-node zk-handler (str supervisor-path "/" best-supervisor "/" node) (utils/object->bytes {"assign-time" (utils/current-time-millis)}))
           (log/info "submit task successfully, (topology id='" id "')"))
       (do (zookeeper/set-data zk-handler (str command-path "/" node) (utils/object->bytes {"command" "wait" "time" (utils/current-time-millis)}))
           (log/warn "resource not enough, this task will be waiting. (topology id='" id "')")))))
@@ -73,16 +74,35 @@
 (defn clear-topology [zk-handler node]
   (let [assignment-path "/assignments"
         command-path "/commands"
-        status-path "/status"]
+        status-path "/status"
+        supervisor-path "/supervisors"]
+    (try
+      (let [zk-data (zookeeper/get-data zk-handler
+                                        (str assignment-path "/" node)
+                                        false)
+            supervisor (get (utils/bytes->map zk-data)
+                            "supervisor" nil)]
+        (if-not (or (nil? supervisor) (= supervisor ""))
+          (zookeeper/delete-node zk-handler
+                                 (str supervisor-path
+                                      "/"
+                                      supervisor
+                                      "/"
+                                      node))))
+      (catch Exception e
+        (log/error (.toString e))))
     (try
       (zookeeper/delete-node zk-handler (str assignment-path "/" node))
-      (catch Exception e))
+      (catch Exception e
+        (log/error (.toString e))))
     (try
       (zookeeper/delete-node zk-handler (str command-path "/" node))
-      (catch Exception e))
+      (catch Exception e
+        (log/error (.toString e))))
     (try
       (zookeeper/delete-node zk-handler (str status-path "/" node))
-      (catch Exception e))))
+      (catch Exception e
+        (log/error (.toString e))))))
 
 (defn submit-task [zk-handler id jar klass floor-score group type  assignment-path status-path command-path]
   (let [result (atom "submit failure!")]
@@ -191,7 +211,39 @@
                     (.protocolFactory (TBinaryProtocol$Factory.))
                     (.processor (Nimbus$Processor. service-handler#)))
         server (THsHaServer. options)
-        nimbus-node (zookeeper/create-node zk-handler (str nimbus-path "/nimbus-") (utils/object->bytes (conj nimbus-info (utils/resources-info))) :ephemeral-sequential)]
+        nimbus-node (zookeeper/create-node zk-handler (str nimbus-path "/nimbus-") (utils/object->bytes (conj nimbus-info (utils/resources-info))) :ephemeral-sequential)
+        health-check (fn []
+                       (log/info "start health check!")
+                       (let [assigned-num (atom 0)
+                             no-supervisor-num (atom 0)
+                             lost-supervisor-num (atom 0)
+                             error-supervisor-num (atom 0)
+                             tasks (set (zookeeper/get-children zk-handler assignment-path false))
+                             supervisors (set (zookeeper/get-children zk-handler supervisor-path false))]
+                         (doseq [task tasks]
+                           (let [zk-data (zookeeper/get-data zk-handler
+                                                             (str assignment-path "/" task))
+                                 task-info (utils/bytes->map zk-data)
+                                 supervisor (get task-info
+                                                 "supervisor" nil)]
+                             (if (or (nil? supervisor) (= supervisor ""))
+                               (do (reset! no-supervisor-num (inc @no-supervisor-num))
+                                   (log/info "the task has no supervisor:" task-info))
+                               (if-not (contains? supervisors supervisor)
+                                 (do (reset! error-supervisor-num (inc @error-supervisor-num))
+                                     (log/error "the task's supervisor not exists:" task-info))
+                                 (if (zookeeper/exists-node? zk-handler
+                                                             (str supervisor-path "/" supervisor "/" task)
+                                                             false)
+                                   (reset! assigned-num (inc @assigned-num))
+                                   (do (zookeeper/create-node zk-handler (str supervisor-path "/" supervisor "/" task) (utils/object->bytes {"assign-time" (utils/current-time-millis)}))
+                                       (reset! lost-supervisor-num (inc @lost-supervisor-num))
+                                       (log/info "the task lost supervisor:" task-info))))))))
+                       (log/info "assigned num:" @assigned-num)
+                       (log/info "no supervisor num:" @no-supervisor-num)
+                       (log/info "lost supervisor num:" @lost-supervisor-num)
+                       (log/info "error supervisor num:" @error-supervisor-num)
+                       (log/info "end health check!"))]
     (.addShutdownHook (Runtime/getRuntime) (Thread. (fn []
                                                       (timer/cancel-timer heartbeat-timer)
                                                       (timer/cancel-timer workerbeat-timer)
@@ -213,13 +265,21 @@
                                   (catch Exception e
                                     (log/error e "error accurs in nimbus heartbeat timer")
                                     (System/exit -1)))))
+    (log/info "init health check!")
+    (try
+      (health-check)
+      (catch Exception e
+        (log/error (.toString e))))
+    (log/info "finish init health check!")
     (timer/schedule-recurring workerbeat-timer 5 schedule-check-interval                              
                               (fn []
+                                (log/info "nimbus schedule begins!")
                                 (try
                                   (let [workers (set (zookeeper/get-children zk-handler workerbeat-path false))
                                         tasks (set (zookeeper/get-children zk-handler assignment-path false))
                                         now (utils/current-time-millis)
                                         nodes (clojure.set/difference tasks workers)]
+                                    (log/info "start to deal all task commands!")
                                     (doseq [node tasks]
                                       (let [command-info (utils/bytes->map (zookeeper/get-data zk-handler (str command-path "/" node) false))
                                             update-time (command-info "time")
@@ -228,7 +288,23 @@
                                         (case command
                                           "kill" (when (> (- now update-time) (conf MAGPIE-SCHEDULE-TIMEOUT))
                                                    (log/error "worker stop timeout..will be force stop...(topology id='" id "')")
-                                                   (zookeeper/set-data zk-handler (str assignment-path "/" node) (utils/object->bytes {"supervisor" ""})))
+                                                   (try
+                                                     (let [zk-data (zookeeper/get-data zk-handler
+                                                                                       (str assignment-path "/" node)
+                                                                                       false)
+                                                           supervisor (get (utils/bytes->map zk-data)
+                                                                           "supervisor" nil)]
+                                                       (if (or (nil? supervisor) (= supervisor ""))
+                                                         (zookeeper/set-data zk-handler (str assignment-path "/" node) (utils/object->bytes {"supervisor" ""}))
+                                                         (do (zookeeper/delete-node zk-handler
+                                                                                    (str supervisor-path
+                                                                                         "/"
+                                                                                         supervisor
+                                                                                         "/"
+                                                                                         node))
+                                                             (zookeeper/set-data zk-handler (str assignment-path "/" node) (utils/object->bytes {"supervisor" ""})))))
+                                                     (catch Exception e
+                                                       (log/error (.toString e)))))
                                           "reload" (let [status (utils/bytes->string (zookeeper/get-data zk-handler (str status-path "/" node) false))]
                                                      (when (= status "reloaded")
                                                        (zookeeper/set-data zk-handler (str command-path "/" node) (utils/object->bytes {"command" "run" "time" (utils/current-time-millis)}))
@@ -237,6 +313,8 @@
                                                     (when (and (not= status "paused") (> (- now update-time) (conf MAGPIE-SCHEDULE-TIMEOUT)))
                                                       (log/error "topology pause timeout......(topology id='" id "', status='" status "')")))
                                           "default")))
+                                    (log/info "end to deal all task commands!")
+                                    (log/info "start to deal no-heartbeat tasks!")
                                     (doseq [node nodes]
                                       (let [command-info (utils/bytes->map (zookeeper/get-data zk-handler (str command-path "/" node) false))
                                             update-time (command-info "time")
@@ -256,11 +334,15 @@
                                                      (log/info "topology stop successfully...(topology id='" id "', jar='" jar "', class='" klass "')"))
                                           (do (when (> (- now update-time) (conf MAGPIE-SCHEDULE-TIMEOUT))
                                                 (log/error "topology heartbeat miss..will be re-scheduled..(topology id='" id "')")
-                                                (assign zk-handler id jar klass group type floor-score :last-supervisor (get-execute-supervisor)))))
-                                        )))
+                                                (assign zk-handler id jar klass group type floor-score :last-supervisor (get-execute-supervisor)))))))
+                                    (log/info "end to deal no-heartbeat tasks!")
+                                    (log/info "health check!")
+                                    (health-check)
+                                    (log/info "finish health check!"))
                                   (catch Exception e
                                     (log/error e "error accurs in nimbus scheduling and checking..")
-                                    (System/exit -1)))))
+                                    (System/exit -1)))
+                                (log/info "nimbus schedule ends!")))
     
     (.serve server)))
 

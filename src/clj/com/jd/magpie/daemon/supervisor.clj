@@ -14,18 +14,12 @@
                           :net-bandwidth-score nil
                           :time-millis nil}))
 
-(defn bak-get-my-jobs [zk-handler supervisor-id]
-  (let [assignment-path "/assignments"
-        assignments (zookeeper/get-children zk-handler assignment-path false)
-        assignment-infos (map #(conj (utils/bytes->map (zookeeper/get-data zk-handler (str assignment-path "/" %) false)) {"node" %}) assignments)]
-    (if (empty? assignments)
-      []
-      (filter #(= supervisor-id (get % "supervisor")) assignment-infos))))
-
 (defn get-my-jobs [zk-handler supervisor-id]
+  (log/info "start get my jobs!")
   (let [assignment-path "/assignments"
-        assignments (zookeeper/get-children zk-handler assignment-path false)]
-    (if (empty? assignments)
+        supervisor-path "/supervisors"
+        tasks (zookeeper/get-children zk-handler (str supervisor "/" supervisor-id) false)]
+    (if (empty? tasks)
       []
       (filter #(not (nil? %)) (map (fn [task-id]
                                      (let [zk-data (zookeeper/get-data zk-handler (str assignment-path "/" task-id) false)]
@@ -34,7 +28,7 @@
                                          (let [zk-data-map (utils/bytes->map zk-data)]
                                            (if (= supervisor-id (get zk-data-map "supervisor"))
                                              (conj zk-data-map {"node" task-id})
-                                             nil))))) assignments)))))
+                                             nil))))) tasks)))))
 
 (defn launch-job [conf job-info get-resources-url-func]
   (let [jars-dir (conf MAGPIE-JARS-DIR)
@@ -79,6 +73,7 @@
       (log/info "command: " command))))
 
 (defn process-job [conf zk-handler supervisor-id]
+  (log/info "process job starts!")
   (let [my-job-infos (get-my-jobs zk-handler supervisor-id)
         pids-dir (conf MAGPIE-PIDS-DIR)
         command-path "/commands"
@@ -106,7 +101,8 @@
           (when-not (utils/process-running? (get-pid node))
             (log/error "process is not running well....")
             (utils/ensure-process-killed! (get-pid node))
-            (utils/rmr (get-pid-dir node))))))))
+            (utils/rmr (get-pid-dir node)))))))
+  (log/info "process job ends!"))
 
 (defn get-net-bandwidth [calculate-interval max-net-bandwidth]
   (let [mill (* 1024 1024)
