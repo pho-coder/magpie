@@ -61,12 +61,16 @@
   (let [supervisor-path "/supervisors"
         assignment-path "/assignments"
         command-path "/commands"
+        yourtasks-path "/yourtasks"
         node id
         task-path (str assignment-path "/" node)]
     (if-let [best-supervisor (get-best zk-handler supervisor-path group type floor-score)]
       (do (zookeeper/set-data zk-handler (str command-path "/" node) (utils/object->bytes {"command" "run" "time" (utils/current-time-millis)}))
           (zookeeper/set-data zk-handler task-path (utils/object->bytes {"start-time" (utils/current-time-millis) "jar" jar "class" klass "id" id "group" group "type" type "supervisor" best-supervisor "last-supervisor" last-supervisor}))
-          (zookeeper/create-node zk-handler (str supervisor-path "/" best-supervisor "/" node) (utils/object->bytes {"assign-time" (utils/current-time-millis)}))
+          (let [yourtask-path (str yourtasks-path "/" best-supervisor "/" node)]
+            (if (zookeeper/exists-node? zk-handler yourtask-path false)
+              (zookeeper/set-data zk-handler yourtask-path (utils/object->bytes {"assign-time" (utils/current-time-millis)}))
+              (zookeeper/create-node zk-handler yourtask-path (utils/object->bytes {"assign-time" (utils/current-time-millis)}))))
           (log/info "submit task successfully, (topology id='" id "')"))
       (do (zookeeper/set-data zk-handler (str command-path "/" node) (utils/object->bytes {"command" "wait" "time" (utils/current-time-millis)}))
           (log/warn "resource not enough, this task will be waiting. (topology id='" id "')")))))
@@ -75,7 +79,7 @@
   (let [assignment-path "/assignments"
         command-path "/commands"
         status-path "/status"
-        supervisor-path "/supervisors"]
+        yourtasks-path "/yourtasks"]
     (try
       (let [zk-data (zookeeper/get-data zk-handler
                                         (str assignment-path "/" node)
@@ -84,7 +88,7 @@
                             "supervisor" nil)]
         (if-not (or (nil? supervisor) (= supervisor ""))
           (zookeeper/delete-node zk-handler
-                                 (str supervisor-path
+                                 (str yourtasks-path
                                       "/"
                                       supervisor
                                       "/"
@@ -197,6 +201,7 @@
         workerbeat-path "/workerbeats"
         status-path "/status"
         command-path "/commands"
+        yourtasks-path "/yourtasks"
         heartbeat-interval (/ (conf MAGPIE-HEARTBEAT-INTERVAL 2000) 1000)
         schedule-check-interval (/ (conf MAGPIE-SCHEDULE-INTERVAL 5000) 1000)
         _ (config/init-zookeeper zk-handler)
@@ -219,10 +224,14 @@
                              lost-supervisor-num (atom 0)
                              error-supervisor-num (atom 0)
                              tasks (set (zookeeper/get-children zk-handler assignment-path false))
-                             supervisors (set (zookeeper/get-children zk-handler supervisor-path false))]
+                             supervisors (set (zookeeper/get-children zk-handler supervisor-path false))
+                             yourtasks-supervisors (set (zookeeper/get-children zk-handler yourtasks-path false))
+                             lost-supervisors (clojure.set/difference supervisors yourtasks-supervisors)
+                             more-supervisors (clojure.set/difference yourtasks-supervisors supervisors)]
                          (doseq [task tasks]
                            (let [zk-data (zookeeper/get-data zk-handler
-                                                             (str assignment-path "/" task))
+                                                             (str assignment-path "/" task)
+                                                             false)
                                  task-info (utils/bytes->map zk-data)
                                  supervisor (get task-info
                                                  "supervisor" nil)]
@@ -233,17 +242,17 @@
                                  (do (reset! error-supervisor-num (inc @error-supervisor-num))
                                      (log/error "the task's supervisor not exists:" task-info))
                                  (if (zookeeper/exists-node? zk-handler
-                                                             (str supervisor-path "/" supervisor "/" task)
+                                                             (str yourtasks-path "/" supervisor "/" task)
                                                              false)
                                    (reset! assigned-num (inc @assigned-num))
-                                   (do (zookeeper/create-node zk-handler (str supervisor-path "/" supervisor "/" task) (utils/object->bytes {"assign-time" (utils/current-time-millis)}))
+                                   (do (zookeeper/create-node zk-handler (str yourtasks-path "/" supervisor "/" task) (utils/object->bytes {"assign-time" (utils/current-time-millis)}))
                                        (reset! lost-supervisor-num (inc @lost-supervisor-num))
-                                       (log/info "the task lost supervisor:" task-info))))))))
-                       (log/info "assigned num:" @assigned-num)
-                       (log/info "no supervisor num:" @no-supervisor-num)
-                       (log/info "lost supervisor num:" @lost-supervisor-num)
-                       (log/info "error supervisor num:" @error-supervisor-num)
-                       (log/info "end health check!"))]
+                                       (log/info "the task lost supervisor:" task-info)))))))
+                         (log/info "assigned num:" @assigned-num)
+                         (log/info "no supervisor num:" @no-supervisor-num)
+                         (log/info "lost supervisor num:" @lost-supervisor-num)
+                         (log/info "error supervisor num:" @error-supervisor-num)
+                         (log/info "end health check!")))]
     (.addShutdownHook (Runtime/getRuntime) (Thread. (fn []
                                                       (timer/cancel-timer heartbeat-timer)
                                                       (timer/cancel-timer workerbeat-timer)
@@ -297,7 +306,7 @@
                                                        (if (or (nil? supervisor) (= supervisor ""))
                                                          (zookeeper/set-data zk-handler (str assignment-path "/" node) (utils/object->bytes {"supervisor" ""}))
                                                          (do (zookeeper/delete-node zk-handler
-                                                                                    (str supervisor-path
+                                                                                    (str yourtasks-path
                                                                                          "/"
                                                                                          supervisor
                                                                                          "/"

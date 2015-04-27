@@ -18,17 +18,31 @@
   (log/info "start get my jobs!")
   (let [assignment-path "/assignments"
         supervisor-path "/supervisors"
-        tasks (zookeeper/get-children zk-handler (str supervisor "/" supervisor-id) false)]
+        yourtasks-path "/yourtasks"
+        tasks (zookeeper/get-children zk-handler (str yourtasks-path "/" supervisor-id) false)]
     (if (empty? tasks)
       []
       (filter #(not (nil? %)) (map (fn [task-id]
                                      (let [zk-data (zookeeper/get-data zk-handler (str assignment-path "/" task-id) false)]
                                        (if (nil? zk-data)
-                                         nil
-                                         (let [zk-data-map (utils/bytes->map zk-data)]
-                                           (if (= supervisor-id (get zk-data-map "supervisor"))
-                                             (conj zk-data-map {"node" task-id})
-                                             nil))))) tasks)))))
+                                         (do (try
+                                               (zookeeper/delete-node zk-handler (str yourtasks-path "/" supervisor-id "/" task-id))
+                                               (log/info "NOT in assignments! delete my task:" task-id)
+                                               (catch Exception e
+                                                 (log/error (.toString e))))
+
+                                             nil)
+                                         (let [zk-data-map (utils/bytes->map zk-data)
+                                               assignment-supervisor (get zk-data-map "supervisor")]
+                                           (if (= supervisor-id assignment-supervisor)
+                                             zk-data-map
+                                             (do (log/error task-id (str "found in /yourtasks/" supervisor-id) "but /assignments/" task-id "show in" assignment-supervisor)
+                                                 (try
+                                                   (zookeeper/delete-node zk-handler (str yourtasks-path "/" supervisor-id "/" task-id))
+                                                   (log/info "NOT my task in assignments! delete my task:" task-id)
+                                                   (catch Exception e
+                                                     (log/error (.toString e))))
+                                                 nil)))))) tasks)))))
 
 (defn launch-job [conf job-info get-resources-url-func]
   (let [jars-dir (conf MAGPIE-JARS-DIR)
@@ -79,19 +93,19 @@
         command-path "/commands"
         webservice-path "/webservice"
         get-resources-url-func (fn [] (utils/bytes->string (zookeeper/get-data zk-handler (str webservice-path "/resource") false)))
-        my-jobs (set (map #(get % "node") my-job-infos))
+        my-jobs (set (map #(get % "id") my-job-infos))
         current-jobs (set (utils/read-dir-contents pids-dir))
         waste-jobs (clojure.set/difference current-jobs my-jobs)
         get-pid-dir (fn [node] (utils/normalize-path (str pids-dir "/" node)))
         get-pid (fn [node] (first (utils/read-dir-contents (get-pid-dir node))))]
     (doseq [job waste-jobs]
-      (log/info "job stopped! Clearing the job info..")
+      (log/info "task:" job "stopped! Clearing the job info..")
       (when-let [pid (get-pid job)]
         (if (utils/process-running? pid)
           (utils/ensure-process-killed! pid)))
       (utils/rmr (get-pid-dir job)))
     (doseq [job-info my-job-infos]
-      (let [node (job-info "node")
+      (let [node (job-info "id")
             pid-dir (get-pid-dir node)]
         (if-not (utils/exists-file? pid-dir)
           (if-let [zk-data (zookeeper/get-data zk-handler (str command-path "/" node) false)]
@@ -99,7 +113,7 @@
               (when (and command (not= command "kill"))
                 (launch-job conf job-info get-resources-url-func))))
           (when-not (utils/process-running? (get-pid node))
-            (log/error "process is not running well....")
+            (log/error "task" node "process is not running well....")
             (utils/ensure-process-killed! (get-pid node))
             (utils/rmr (get-pid-dir node)))))))
   (log/info "process job ends!"))
@@ -180,6 +194,7 @@
         schedule-check-interval (/ (conf MAGPIE-SCHEDULE-INTERVAL 5000) 1000)
         net-bandwidth-calculate-interval (conf MAGPIE-NET-BANDWIDTH-CALCULATE-INTERVAL 30000)
         supervisor-path "/supervisors"
+        yourtasks-path "/yourtasks"
         hostname (utils/hostname)
         pid (utils/process-pid)
         uuid-file (utils/normalize-path (str (conf MAGPIE-LOGS-DIR) "/.uuid"))
@@ -203,6 +218,11 @@
     (log/info "Starting supervisor...")
     (config/init-zookeeper zk-handler)
     (zookeeper/create-node zk-handler supervisor-node (utils/object->bytes (conj supervisor-info (utils/resources-info) (get-net-bandwidth net-bandwidth-calculate-interval supervisor-max-net-bandwidth))) :ephemeral)
+
+    (if-not (zookeeper/exists-node? zk-handler (str yourtasks-path "/" supervisor-id) false)
+      (do (zookeeper/mkdirs zk-handler (str yourtasks-path "/" supervisor-id))
+          (log/info "create my tasks path!")))
+
     (timer/schedule-recurring heartbeat-timer 10 heartbeat-interval
                               (fn []
                                 (try
