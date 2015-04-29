@@ -62,18 +62,21 @@
         assignment-path "/assignments"
         command-path "/commands"
         yourtasks-path "/yourtasks"
+        workerbeats-path "/workerbeats"
         node id
         task-path (str assignment-path "/" node)]
-    (if-let [best-supervisor (get-best zk-handler supervisor-path group type floor-score)]
-      (do (zookeeper/set-data zk-handler (str command-path "/" node) (utils/object->bytes {"command" "run" "time" (utils/current-time-millis)}))
-          (zookeeper/set-data zk-handler task-path (utils/object->bytes {"start-time" (utils/current-time-millis) "jar" jar "class" klass "id" id "group" group "type" type "supervisor" best-supervisor "last-supervisor" last-supervisor}))
-          (let [yourtask-path (str yourtasks-path "/" best-supervisor "/" node)]
-            (if (zookeeper/exists-node? zk-handler yourtask-path false)
-              (zookeeper/set-data zk-handler yourtask-path (utils/object->bytes {"assign-time" (utils/current-time-millis)}))
-              (zookeeper/create-node zk-handler yourtask-path (utils/object->bytes {"assign-time" (utils/current-time-millis)}))))
-          (log/info "submit task successfully, (topology id='" id "')"))
-      (do (zookeeper/set-data zk-handler (str command-path "/" node) (utils/object->bytes {"command" "wait" "time" (utils/current-time-millis)}))
-          (log/warn "resource not enough, this task will be waiting. (topology id='" id "')")))))
+    (if (zookeeper/exists-node? zk-handler (str workerbeats-path "/" node) false)
+      (log/warn node "heartbeat exists! NOT assign it!")
+      (if-let [best-supervisor (get-best zk-handler supervisor-path group type floor-score)]
+        (do (zookeeper/set-data zk-handler (str command-path "/" node) (utils/object->bytes {"command" "run" "time" (utils/current-time-millis)}))
+            (zookeeper/set-data zk-handler task-path (utils/object->bytes {"start-time" (utils/current-time-millis) "jar" jar "class" klass "id" id "group" group "type" type "supervisor" best-supervisor "last-supervisor" last-supervisor}))
+            (let [yourtask-path (str yourtasks-path "/" best-supervisor "/" node)]
+              (if (zookeeper/exists-node? zk-handler yourtask-path false)
+                (zookeeper/set-data zk-handler yourtask-path (utils/object->bytes {"assign-time" (utils/current-time-millis)}))
+                (zookeeper/create-node zk-handler yourtask-path (utils/object->bytes {"assign-time" (utils/current-time-millis)}))))
+            (log/info "submit task successfully, (topology id='" id "', supervisor id='" best-supervisor "')"))
+        (do (zookeeper/set-data zk-handler (str command-path "/" node) (utils/object->bytes {"command" "wait" "time" (utils/current-time-millis)}))
+            (log/warn "resource not enough, this task will be waiting. (topology id='" id "')"))))))
 
 (defn clear-topology [zk-handler node]
   (let [assignment-path "/assignments"
@@ -96,17 +99,18 @@
       (catch Exception e
         (log/error (.toString e))))
     (try
-      (zookeeper/delete-node zk-handler (str assignment-path "/" node))
-      (catch Exception e
-        (log/error (.toString e))))
-    (try
       (zookeeper/delete-node zk-handler (str command-path "/" node))
       (catch Exception e
         (log/error (.toString e))))
     (try
       (zookeeper/delete-node zk-handler (str status-path "/" node))
       (catch Exception e
-        (log/error (.toString e))))))
+        (log/error (.toString e))))
+    (try
+      (zookeeper/delete-node zk-handler (str assignment-path "/" node))
+      (catch Exception e
+        (log/error (.toString e))))
+    (log/info "clear task" node "zk nodes successfully!")))
 
 (defn submit-task [zk-handler id jar klass floor-score group type  assignment-path status-path command-path]
   (let [result (atom "submit failure!")]
@@ -149,9 +153,9 @@
                 running? (zookeeper/exists-node? zk-handler task-path false)]
             (if running?
               (do (zookeeper/set-data zk-handler (str command-path "/" node) (utils/object->bytes {"command" command-str "time" (utils/current-time-millis)}))
-                  (reset! result (str command " successfully!, (task id='" id "')"))
+                  (reset! result (str command " command submitted successfully!, (task id='" id "')"))
                   (log/info @result))
-              (do (reset! result (str "task is not running, (task id='" id "')"))
+              (do (reset! result (str command "command submitted error! task is not running, (task id='" id "')"))
                   (log/error @result))))
           (catch Throwable e
             (reset! result (str e "Task " command " exception. (task id='" id "')"))
@@ -345,9 +349,9 @@
                                                 (log/error "topology heartbeat miss..will be re-scheduled..(topology id='" id "')")
                                                 (assign zk-handler id jar klass group type floor-score :last-supervisor (get-execute-supervisor)))))))
                                     (log/info "end to deal no-heartbeat tasks!")
-                                    (log/info "health check!")
+
                                     (health-check)
-                                    (log/info "finish health check!"))
+)
                                   (catch Exception e
                                     (log/error e "error accurs in nimbus scheduling and checking..")
                                     (System/exit -1)))

@@ -106,14 +106,18 @@
       (utils/rmr (get-pid-dir job)))
     (doseq [job-info my-job-infos]
       (let [node (job-info "id")
-            pid-dir (get-pid-dir node)]
+            pid-dir (get-pid-dir node)
+            zk-data (zookeeper/get-data zk-handler (str command-path "/" node) false)]
         (if-not (utils/exists-file? pid-dir)
-          (if-let [zk-data (zookeeper/get-data zk-handler (str command-path "/" node) false)]
+          (if zk-data
             (let [command ((utils/bytes->map zk-data) "command")]
               (when (and command (not= command "kill"))
                 (launch-job conf job-info get-resources-url-func))))
           (when-not (utils/process-running? (get-pid node))
-            (log/error "task" node "process is not running well....")
+            (if zk-data
+              (let [command ((utils/bytes->map zk-data) "command")]
+                (when (and command (not= command "kill"))
+                  (log/error "task" node "process is not running well...."))))
             (utils/ensure-process-killed! (get-pid node))
             (utils/rmr (get-pid-dir node)))))))
   (log/info "process job ends!"))
