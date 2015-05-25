@@ -1,4 +1,4 @@
-(defproject magpie "1.1.3.0422-SNAPSHOT"
+(defproject magpie "1.1.3.0513-SNAPSHOT"
   :description "FIXME: write description"
   :url "http://example.com/FIXME"
   :license {:name "Eclipse Public License"
@@ -21,7 +21,6 @@
                  [org.clojure/tools.logging "0.2.6"]
                  [org.yaml/snakeyaml "1.11"]
                  [org.apache.thrift/libthrift "0.9.1"]
-;;                 [org.apache.zookeeper/zookeeper "3.4.6"]
                  [org.apache.curator/curator-framework "2.6.0"]
                  [org.slf4j/slf4j-api "1.7.5"]
                  [org.slf4j/slf4j-log4j12 "1.7.5"]
@@ -38,6 +37,4 @@
   :target-path "target/"
   :jar-name "magpie.jar"
   :jvm-opts ["-Djava.library.path=native/Linux-amd64-64/"]
-;  :uberjar-exclusions [#"bin"]
-;  :main magpie.core
 )
