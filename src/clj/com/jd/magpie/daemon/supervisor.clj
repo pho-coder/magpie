@@ -4,6 +4,7 @@
             [com.jd.magpie.util.config :as config]
             [com.jd.magpie.util.timer :as timer]
             [com.jd.magpie.util.utils :as utils]
+            [com.jd.magpie.util.cgutils :as cgutils]
             [clojure.tools.logging :as log])
   (:use [com.jd.magpie.bootstrap]))
 
@@ -47,14 +48,22 @@
 (defn launch-job [conf job-info get-resources-url-func]
   (let [jars-dir (conf MAGPIE-JARS-DIR)
         pids-dir (conf MAGPIE-PIDS-DIR)
-        timeout (conf MAGPIE-SCHEDULE-TIMEOUT)
+        timeout (conf MAGPIE-SCHEDULE-LAUNCHWORKER-TIMEOUT 10000)
         servers (conf MAGPIE-ZOOKEEPER-SERVERS)
         zk-port (conf MAGPIE-ZOOKEEPER-PORT)
         zk-root (conf MAGPIE-ZOOKEEPER-ROOT)
-        zk-servers (clojure.string/join "," (map #(str % ":" zk-port) servers))]
+        zk-servers (clojure.string/join "," (map #(str % ":" zk-port) servers))
+        cgroup-enable (conf MAGPIE-CGROUP-ENABLE false)
+        _ (log/info cgroup-enable)
+        _ (log/info (type cgroup-enable))
+        cgname (conf MAGPIE-CGROUP-NAME "magpie")
+        cgcpu-cores (conf MAGPIE-CGROUP-CPU-CORES 1)
+        cgmemory (conf MAGPIE-CGROUP-MEMORY 1024)
+        cgmemsw (conf MAGPIE-CGROUP-MEMSW 512)]
     (let [jar (job-info "jar")
           klass (job-info "class")
           id (job-info "id")
+          cgchild-name id
           node id
           get-pid-dir (fn [node] (utils/normalize-path (str pids-dir "/" node)))
           get-pid (fn [node] (first (utils/read-dir-contents (get-pid-dir node))))
@@ -74,13 +83,17 @@
                                             (str "-Dzookeeper.root=" zk-root)
                                             (str "-Djob.id=" id)
                                             "-cp" classpath klass])
-          process (utils/launch-process command)
+          process (if cgroup-enable
+                    (cgutils/cgone cgname cgchild-name cgcpu-cores cgmemory cgmemsw command)
+                    (utils/launch-process command))
+          _ (log/info (type process))
           time (utils/current-time-millis)]
       (loop [pid (get-pid node)]
         (if (empty? pid)
           (if (> (- (utils/current-time-millis) time) timeout)
             (do (log/error "start job timeout...(topology id='" id "', jar='" jar "', class='" klass "')")
-                (.destroy process)
+                (if (= Process (type process))
+                  (.destroy process))
                 (utils/rmr (get-pid-dir node)))
             (recur (get-pid node)))
           (log/info "launch job successfully...(topology id='" id "', jar='" jar "', class='" klass "')")))

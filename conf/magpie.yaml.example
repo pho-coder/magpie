@@ -1,10 +1,10 @@
 nimbus.thrift.port: 6666
 magpie.zookeeper.servers:
- - storm1
- - storm2
- - storm3
+ - magpie1
+ - magpie2
+ - magpie3
 magpie.zookeeper.port: 2181
-magpie.zookeeper.root: /magpie-test
+magpie.zookeeper.root: /magpie
 magpie.zookeeper.connection.timeout.millis: 15000
 magpie.zookeeper.session.timeout.millis: 20000
 magpie.zookeeper.retry.interval.millis: 1000
@@ -18,10 +18,18 @@ magpie.logs.dir: /tmp/.magpie/logs
 magpie.heartbeat.interval.millis: 1000
 magpie.schedule.interval.millis: 1000
 magpie.schedule.timeout.millis: 60000
+magpie.schedule.launchworker.timeout.millis: 10000
 magpie.net-bandwidth-calculate.interval.millis: 30000
 
 magpie.worker.childopts: "-Xmx768m"
 java.library.path: ""
 
 magpie.supervisor.group: "default"
-magpie.supervisor.net-bandwidth: 100
+magpie.supervisor.max-net-bandwidth: 100
+
+magpie.cgroup.enable: false
+magpie.cgroup.name: "magpie"
+magpie.cgroup.cpu-cores: 1
+# unit: MB
+magpie.cgroup.memory: 1024
+magpie.cgroup.memsw: 512

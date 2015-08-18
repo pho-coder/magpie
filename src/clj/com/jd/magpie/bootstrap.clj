@@ -13,6 +13,7 @@
 (def MAGPIE-ZOOKEEPER-RETRY-INTERVAL-CEILING "magpie.zookeeper.retry.intervalceiling.millis")
 (def MAGPIE-ZOOKEEPER-AUTH-SCHEME "magpie.zookeeper.auth.scheme")
 (def MAGPIE-ZOOKEEPER-AUTH-PAYLOAD "magpie.zookeeper.auth.payload")
+
 (def MAGPIE-FLOOR-SCORE "magpie.floor.score")
 (def MAGPIE-JARS-DIR "magpie.jars.dir")
 (def MAGPIE-PIDS-DIR "magpie.pids.dir")
@@ -20,8 +21,17 @@
 (def MAGPIE-HEARTBEAT-INTERVAL "magpie.heartbeat.interval.millis")
 (def MAGPIE-SCHEDULE-INTERVAL "magpie.schedule.interval.millis")
 (def MAGPIE-SCHEDULE-TIMEOUT "magpie.schedule.timeout.millis")
+(def MAGPIE-SCHEDULE-LAUNCHWORKER-TIMEOUT "magpie.schedule.launchworker.timeout.millis")
 (def MAGPIE-NET-BANDWIDTH-CALCULATE-INTERVAL "magpie.net-bandwidth-calculate.interval.millis")
-(def JAVA-LIBRARY-PATH "java.library.path")
+
 (def MAGPIE-WORKER-CHILDOPTS "magpie.worker.childopts")
+(def JAVA-LIBRARY-PATH "java.library.path")
+
 (def MAGPIE-SUPERVISOR-GROUP "magpie.supervisor.group")
 (def MAGPIE-SUPERVISOR-MAX-NET-BANDWIDTH "magpie.supervisor.max-net-bandwidth")
+
+(def MAGPIE-CGROUP-ENABLE "magpie.cgroup.enable")
+(def MAGPIE-CGROUP-NAME "magpie.cgroup.name")
+(def MAGPIE-CGROUP-CPU-CORES "magpie.cgroup.cpu-cores")
+(def MAGPIE-CGROUP-MEMORY "magpie.cgroup.memory")
+(def MAGPIE-CGROUP-MEMSW "magpie.cgroup.memsw")
