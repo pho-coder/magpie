@@ -32,4 +32,5 @@ magpie.cgroup.name: "magpie"
 magpie.cgroup.cpu-cores: 1
 # unit: MB
 magpie.cgroup.memory: 1024
-magpie.cgroup.memsw: 512
+# Notice, the value of memory.memsw.limit_in_bytes must not less than that of memory.limit_in_bytes.
+magpie.cgroup.memsw: 1024

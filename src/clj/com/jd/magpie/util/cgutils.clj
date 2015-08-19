@@ -11,8 +11,14 @@
       (utils/exec-command! cmd-str)
       {:success true}
       (catch ExecuteException e
-        (log/error "cgdelete error:" (.toString e))
-        {:success false :info (.toString e)}))))
+        (let [e-str (.toString e)
+              ;; no such file error: org.apache.commons.exec.ExecuteException: Process exited with an error: 96 (Exit value: 96)
+              no-such-file-returncode 96]
+          (if (= (.getExitValue e) no-such-file-returncode)
+            (do (log/warn "cgdelete" name child-name "warnning" e-str)
+                {:success true})
+            (do (log/error "cgdelete error:" e-str)
+                {:success false :info e-str})))))))
 
 (defn cgcreate [name child-name]
   (let [subsystems "cpu,memory"
@@ -47,9 +53,8 @@
 
 (defn cgone [name child-name cpu-cores memory memsw command]
   (log/info "cgroup exec" command)
-  (let [no-such-file "Exit value: 96"
-        re (cgdelete name child-name)]
-    (if (or (:success re) (.contains (:info re) no-such-file))
+  (let [re (cgdelete name child-name)]
+    (if (:success re)
       (let [re (cgcreate name child-name)]
         (if (:success re)
           (let [re (cgvalues name child-name cpu-cores memory memsw)]

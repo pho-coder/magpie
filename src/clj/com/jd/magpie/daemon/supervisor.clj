@@ -49,21 +49,32 @@
   (let [jars-dir (conf MAGPIE-JARS-DIR)
         pids-dir (conf MAGPIE-PIDS-DIR)
         timeout (conf MAGPIE-SCHEDULE-LAUNCHWORKER-TIMEOUT 10000)
+        _ (log/info "supervisor timeout:" timeout)
+        _ (log/info (type timeout))
         servers (conf MAGPIE-ZOOKEEPER-SERVERS)
         zk-port (conf MAGPIE-ZOOKEEPER-PORT)
         zk-root (conf MAGPIE-ZOOKEEPER-ROOT)
         zk-servers (clojure.string/join "," (map #(str % ":" zk-port) servers))
         cgroup-enable (conf MAGPIE-CGROUP-ENABLE false)
-        _ (log/info cgroup-enable)
+        _ (log/info "cgroup-enable" cgroup-enable)
         _ (log/info (type cgroup-enable))
         cgname (conf MAGPIE-CGROUP-NAME "magpie")
+        _ (log/info "cgname" cgname)
+        _ (log/info (type cgname))
         cgcpu-cores (conf MAGPIE-CGROUP-CPU-CORES 1)
+        _ (log/info "cgcpu-cores" cgcpu-cores)
+        _ (log/info (type cgcpu-cores))
         cgmemory (conf MAGPIE-CGROUP-MEMORY 1024)
-        cgmemsw (conf MAGPIE-CGROUP-MEMSW 512)]
+        _ (log/info "cgmemory" cgmemory)
+        _ (log/info (type cgmemory))
+        cgmemsw (conf MAGPIE-CGROUP-MEMSW 512)
+        _ (log/info "cgmemsw" cgmemsw)
+        _ (log/info (type cgmemsw))]
     (let [jar (job-info "jar")
           klass (job-info "class")
           id (job-info "id")
           cgchild-name id
+          _ (log/info "cgchild-name" cgchild-name)
           node id
           get-pid-dir (fn [node] (utils/normalize-path (str pids-dir "/" node)))
           get-pid (fn [node] (first (utils/read-dir-contents (get-pid-dir node))))
@@ -94,7 +105,9 @@
             (do (log/error "start job timeout...(topology id='" id "', jar='" jar "', class='" klass "')")
                 (if (= Process (type process))
                   (.destroy process))
-                (utils/rmr (get-pid-dir node)))
+                (utils/rmr (get-pid-dir node))
+                (when cgroup-enable
+                  (cgutils/cgdelete cgname cgchild-name)))
             (recur (get-pid node)))
           (log/info "launch job successfully...(topology id='" id "', jar='" jar "', class='" klass "')")))
       (log/info "command: " command))))
@@ -103,6 +116,8 @@
   (log/info "process job starts!")
   (let [my-job-infos (get-my-jobs zk-handler supervisor-id)
         pids-dir (conf MAGPIE-PIDS-DIR)
+        cgroup-enable (conf MAGPIE-CGROUP-ENABLE false)
+        cgname (conf MAGPIE-CGROUP-NAME "magpie")
         command-path "/commands"
         webservice-path "/webservice"
         get-resources-url-func (fn [] (utils/bytes->string (zookeeper/get-data zk-handler (str webservice-path "/resource") false)))
@@ -116,9 +131,12 @@
       (when-let [pid (get-pid job)]
         (if (utils/process-running? pid)
           (utils/ensure-process-killed! pid)))
-      (utils/rmr (get-pid-dir job)))
+      (utils/rmr (get-pid-dir job))
+      (when cgroup-enable
+        (cgutils/cgdelete cgname job)))
     (doseq [job-info my-job-infos]
       (let [node (job-info "id")
+            cgchild-name node
             pid-dir (get-pid-dir node)
             zk-data (zookeeper/get-data zk-handler (str command-path "/" node) false)]
         (if-not (utils/exists-file? pid-dir)
@@ -132,7 +150,9 @@
                 (when (and command (not= command "kill"))
                   (log/error "task" node "process is not running well...."))))
             (utils/ensure-process-killed! (get-pid node))
-            (utils/rmr (get-pid-dir node)))))))
+            (utils/rmr (get-pid-dir node))
+            (when cgroup-enable
+              (cgutils/cgdelete cgname cgchild-name)))))))
   (log/info "process job ends!"))
 
 (defn get-net-bandwidth [calculate-interval max-net-bandwidth]
