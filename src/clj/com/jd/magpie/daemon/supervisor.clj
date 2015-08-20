@@ -49,32 +49,19 @@
   (let [jars-dir (conf MAGPIE-JARS-DIR)
         pids-dir (conf MAGPIE-PIDS-DIR)
         timeout (conf MAGPIE-SCHEDULE-LAUNCHWORKER-TIMEOUT 10000)
-        _ (log/info "supervisor timeout:" timeout)
-        _ (log/info (type timeout))
         servers (conf MAGPIE-ZOOKEEPER-SERVERS)
         zk-port (conf MAGPIE-ZOOKEEPER-PORT)
         zk-root (conf MAGPIE-ZOOKEEPER-ROOT)
         zk-servers (clojure.string/join "," (map #(str % ":" zk-port) servers))
         cgroup-enable (conf MAGPIE-CGROUP-ENABLE false)
-        _ (log/info "cgroup-enable" cgroup-enable)
-        _ (log/info (type cgroup-enable))
         cgname (conf MAGPIE-CGROUP-NAME "magpie")
-        _ (log/info "cgname" cgname)
-        _ (log/info (type cgname))
         cgcpu-cores (conf MAGPIE-CGROUP-CPU-CORES 1)
-        _ (log/info "cgcpu-cores" cgcpu-cores)
-        _ (log/info (type cgcpu-cores))
         cgmemory (conf MAGPIE-CGROUP-MEMORY 1024)
-        _ (log/info "cgmemory" cgmemory)
-        _ (log/info (type cgmemory))
-        cgmemsw (conf MAGPIE-CGROUP-MEMSW 512)
-        _ (log/info "cgmemsw" cgmemsw)
-        _ (log/info (type cgmemsw))]
+        cgmemsw (conf MAGPIE-CGROUP-MEMSW 512)]
     (let [jar (job-info "jar")
           klass (job-info "class")
           id (job-info "id")
           cgchild-name id
-          _ (log/info "cgchild-name" cgchild-name)
           node id
           get-pid-dir (fn [node] (utils/normalize-path (str pids-dir "/" node)))
           get-pid (fn [node] (first (utils/read-dir-contents (get-pid-dir node))))
@@ -97,7 +84,6 @@
           process (if cgroup-enable
                     (cgutils/cgone cgname cgchild-name cgcpu-cores cgmemory cgmemsw command)
                     (utils/launch-process command))
-          _ (log/info (type process))
           time (utils/current-time-millis)]
       (loop [pid (get-pid node)]
         (if (empty? pid)

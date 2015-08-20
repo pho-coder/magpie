@@ -9,6 +9,7 @@
         cmd-str (str "cgdelete " subsystems ":" name "/" child-name)]
     (try
       (utils/exec-command! cmd-str)
+      (log/info "cgdelete" name child-name "ok!")
       {:success true}
       (catch ExecuteException e
         (let [e-str (.toString e)
