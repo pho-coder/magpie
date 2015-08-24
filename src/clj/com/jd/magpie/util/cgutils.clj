@@ -5,31 +5,26 @@
   (:import [org.apache.commons.exec ExecuteException]))
 
 (defn cgdelete [name child-name]
-  (let [subsystems "cpu,memory"
-        cmd-str (str "cgdelete " subsystems ":" name "/" child-name)]
-    (try
-      (utils/exec-command! cmd-str)
-      (log/info "cgdelete" name child-name "ok!")
-      {:success true}
-      (catch ExecuteException e
-        (let [e-str (.toString e)
-              ;; no such file error: org.apache.commons.exec.ExecuteException: Process exited with an error: 96 (Exit value: 96)
-              no-such-file-returncode 96]
-          (if (= (.getExitValue e) no-such-file-returncode)
-            (do (log/warn "cgdelete" name child-name "warnning" e-str)
-                {:success true})
-            (do (log/error "cgdelete error:" e-str)
-                {:success false :info e-str})))))))
+  (let [subsystems ["cpu" "memory"]]
+    (doseq [subsystem subsystems]
+      (try
+        (utils/rmr (str "/cgroup/" subsystem "/" name "/" child-name))
+        (catch Exception e
+          (log/error "cgdelete error:" (.toString e))
+          {:success false :info (.toString e)})))
+    (log/info "cgdelete" name child-name "ok!")
+    {:success true}))
 
 (defn cgcreate [name child-name]
-  (let [subsystems "cpu,memory"
-        cmd-str (str "cgcreate -g " subsystems ":" name "/" child-name)]
-    (try
-      (utils/exec-command! cmd-str)
-      {:success true}
-      (catch ExecuteException e
-        (log/error "cgcreate error:" (.toString e))
-        {:success false :info (.toString e)}))))
+  (let [subsystems ["cpu" "memory"]]
+    (doseq [subsystem subsystems]
+      (try
+        (utils/local-mkdirs (str "/cgroup/" subsystem "/" name "/" child-name))
+        (catch Exception e
+          (log/error "cgcreate error:" (.toString e))
+          {:success false :info (.toString e)})))
+    (log/info "cgcreate" name child-name "ok!")
+    {:success true}))
 
 (defn cgvalues [name child-name cpu-cores memory memsw]
   (let [cpu-file (str "/cgroup/cpu/" name "/" child-name "/cpu.cfs_quota_us")
