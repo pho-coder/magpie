@@ -6,25 +6,25 @@
 
 (defn cgdelete [name child-name]
   (let [subsystems ["cpu" "memory"]]
-    (doseq [subsystem subsystems]
-      (try
-        (utils/rmr (str "/cgroup/" subsystem "/" name "/" child-name))
-        (catch Exception e
-          (log/error "cgdelete error:" (.toString e))
-          {:success false :info (.toString e)})))
-    (log/info "cgdelete" name child-name "ok!")
-    {:success true}))
+    (try
+      (doseq [subsystem subsystems]
+        (utils/rmpath (str "/cgroup/" subsystem "/" name "/" child-name)))
+      (log/info "cgdelete" name child-name "ok!")
+      {:success true}
+      (catch Exception e
+        (log/error "cgdelete error:" (.toString e))
+        {:success false :info (.toString e)}))))
 
 (defn cgcreate [name child-name]
   (let [subsystems ["cpu" "memory"]]
-    (doseq [subsystem subsystems]
-      (try
-        (utils/local-mkdirs (str "/cgroup/" subsystem "/" name "/" child-name))
-        (catch Exception e
-          (log/error "cgcreate error:" (.toString e))
-          {:success false :info (.toString e)})))
-    (log/info "cgcreate" name child-name "ok!")
-    {:success true}))
+    (try
+      (doseq [subsystem subsystems]
+        (utils/local-mkdirs (str "/cgroup/" subsystem "/" name "/" child-name)))
+      (log/info "cgcreate" name child-name "ok!")
+      {:success true}
+      (catch Exception e
+        (log/error "cgcreate error:" (.toString e))
+        {:success false :info (.toString e)}))))
 
 (defn cgvalues [name child-name cpu-cores memory memsw]
   (let [cpu-file (str "/cgroup/cpu/" name "/" child-name "/cpu.cfs_quota_us")
