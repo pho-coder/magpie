@@ -5,7 +5,9 @@
             [com.jd.magpie.util.timer :as timer]
             [com.jd.magpie.util.utils :as utils]
             [com.jd.magpie.util.cgutils :as cgutils]
-            [clojure.tools.logging :as log])
+            [com.jd.magpie.util.mutils :as mutils]
+            [clojure.tools.logging :as log]
+            [metrics.reporters.jmx :as jmx])
   (:use [com.jd.magpie.bootstrap]))
 
 (def network-usage (atom {:rx-bytes nil
@@ -15,8 +17,9 @@
                           :net-bandwidth-score nil
                           :time-millis nil}))
 
+(def get-my-jobs-timer (atom nil))
+
 (defn get-my-jobs [zk-handler supervisor-id]
-  (log/info "start get my jobs!")
   (let [assignment-path "/assignments"
         supervisor-path "/supervisors"
         yourtasks-path "/yourtasks"
@@ -99,8 +102,9 @@
       (log/info "command: " command))))
 
 (defn process-job [conf zk-handler supervisor-id]
-  (log/info "process job starts!")
-  (let [my-job-infos (get-my-jobs zk-handler supervisor-id)
+  (let [start-time (System/currentTimeMillis)
+        my-job-infos (mutils/time-timer @get-my-jobs-timer (get-my-jobs zk-handler supervisor-id))
+        _ (log/debug "my-job times" (- (System/currentTimeMillis) start-time))
         pids-dir (conf MAGPIE-PIDS-DIR)
         cgroup-enable (conf MAGPIE-CGROUP-ENABLE false)
         cgname (conf MAGPIE-CGROUP-NAME "magpie")
@@ -138,8 +142,7 @@
             (utils/ensure-process-killed! (get-pid node))
             (utils/rmr (get-pid-dir node))
             (when cgroup-enable
-              (cgutils/cgdelete cgname cgchild-name)))))))
-  (log/info "process job ends!"))
+              (cgutils/cgdelete cgname cgchild-name))))))))
 
 (defn get-net-bandwidth [calculate-interval max-net-bandwidth]
   (let [mill (* 1024 1024)
@@ -233,11 +236,17 @@
         supervisor-max-net-bandwidth (conf MAGPIE-SUPERVISOR-MAX-NET-BANDWIDTH 100)
         supervisor-info {"id" supervisor-id "ip" (utils/ip) "hostname" (utils/hostname) "username" (utils/username) "pid" pid "group" supervisor-group "max-net-bandwidth" supervisor-max-net-bandwidth}
         heartbeat-timer (timer/mk-timer)
-        schedule-timer (timer/mk-timer)]
+        schedule-timer (timer/mk-timer)
+        metrics-names ["com.jd" "magpie"]
+        reg (mutils/get-registry)
+        heartbeat-counter (mutils/get-counter reg (into metrics-names ["heartbeat-counter"]))
+        _ (reset! get-my-jobs-timer (mutils/get-timer reg (into metrics-names ["get-my-jobs-timer"])))
+        jmx-report (jmx/reporter reg {})]
     (.addShutdownHook (Runtime/getRuntime) (Thread. (fn []
                                                       (timer/cancel-timer heartbeat-timer)
                                                       (timer/cancel-timer schedule-timer)
-                                                      (.close zk-handler))))
+                                                      (.close zk-handler)
+                                                      (jmx/stop jmx-report))))
     (log/info "Starting supervisor...")
     (config/init-zookeeper zk-handler)
     (zookeeper/create-node zk-handler supervisor-node (utils/object->bytes (conj supervisor-info (utils/resources-info) (get-net-bandwidth net-bandwidth-calculate-interval supervisor-max-net-bandwidth))) :ephemeral)
@@ -250,6 +259,9 @@
                               (fn []
                                 (try
                                   (zookeeper/set-data zk-handler supervisor-node (utils/object->bytes (conj supervisor-info (utils/resources-info) (get-net-bandwidth net-bandwidth-calculate-interval supervisor-max-net-bandwidth))))
+                                  (mutils/inc-counter heartbeat-counter)
+                                  (when (= (mod (mutils/read-counter heartbeat-counter) 300) 0)
+                                    (log/info "heartbeat counts:" (mutils/read-counter heartbeat-counter)))
                                   (catch Exception e
                                     (log/error e "error accurs in supervisor heartbeat timer..")
                                     (System/exit -1)))))
@@ -259,7 +271,8 @@
                                   (process-job conf zk-handler supervisor-id)
                                   (catch Exception e
                                     (log/error e "error accurs in supervisor processing job")
-                                    (System/exit -1)))))))
+                                    (System/exit -1)))))
+    (jmx/start jmx-report)))
 
 (defn -main [ & args ]
   (try

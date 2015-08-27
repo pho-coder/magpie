@@ -360,8 +360,8 @@
                                     (log/error e "error accurs in nimbus scheduling and checking..")
                                     (System/exit -1)))
                                 (log/info "nimbus schedule ends!")))
-    (.serve server)
-    (jmx/start jmx-report)))
+    (jmx/start jmx-report)
+    (.serve server)))
 
 (defn -main [ & args ]
   (try
