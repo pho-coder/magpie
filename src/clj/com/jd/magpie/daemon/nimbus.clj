@@ -4,7 +4,9 @@
             [com.jd.magpie.util.config :as config]
             [com.jd.magpie.util.timer :as timer]
             [com.jd.magpie.util.utils :as utils]
-            [clojure.tools.logging :as log])
+            [com.jd.magpie.util.mutils :as mutils]
+            [clojure.tools.logging :as log]
+            [metrics.reporters.jmx :as jmx])
   (:use [com.jd.magpie.bootstrap])
   (:import [com.jd.magpie.generated Nimbus Nimbus$Iface Nimbus$Processor]
            [java.util Arrays]
@@ -256,11 +258,13 @@
                          (log/info "no supervisor num:" @no-supervisor-num)
                          (log/info "lost supervisor num:" @lost-supervisor-num)
                          (log/info "error supervisor num:" @error-supervisor-num)
-                         (log/info "end health check!")))]
+                         (log/info "end health check!")))
+        jmx-report (jmx/reporter (mutils/get-registry) {})]
     (.addShutdownHook (Runtime/getRuntime) (Thread. (fn []
                                                       (timer/cancel-timer heartbeat-timer)
                                                       (timer/cancel-timer workerbeat-timer)
                                                       (.close zk-handler)
+                                                      (jmx/stop jmx-report)
                                                       (.stop server))))
     (log/info "Starting Nimbus server")
     (log/info "nimbus zookeeper node: " nimbus-node)
@@ -356,8 +360,8 @@
                                     (log/error e "error accurs in nimbus scheduling and checking..")
                                     (System/exit -1)))
                                 (log/info "nimbus schedule ends!")))
-    
-    (.serve server)))
+    (.serve server)
+    (jmx/start jmx-report)))
 
 (defn -main [ & args ]
   (try
