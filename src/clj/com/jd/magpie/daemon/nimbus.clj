@@ -164,40 +164,42 @@
             (log/error @result)))
         @result))))
 
-(defn service-handler [conf zk-handler]
+(defn service-handler [conf zk-handler reg]
   (let [assignment-path "/assignments"
         status-path "/status"
         command-path "/commands"
-        floor-score (conf MAGPIE-FLOOR-SCORE 20)]
+        floor-score (conf MAGPIE-FLOOR-SCORE 20)
+        submit-task-timer (.get (.getTimers reg) (clojure.string/join "." MAGPIE-NIMBUS-SUBMIT-TASK-TIMER-METRICS-NAME))
+        operate-task-timer (.get (.getTimers reg) (clojure.string/join "." MAGPIE-NIMBUS-OPERATE-TASK-TIMER-METRICS-NAME))]
     
     (reify Nimbus$Iface
       (^String submitTopology
         [this ^String id ^String jar ^String klass]
-        (submit-task zk-handler id jar klass floor-score "default" "memory" assignment-path status-path command-path))
+        (mutils/time-timer submit-task-timer (submit-task zk-handler id jar klass floor-score "default" "memory" assignment-path status-path command-path)))
       
       (^String killTopology
         [this ^String id]
-        (operate-task zk-handler id "kill" assignment-path status-path command-path))
+        (mutils/time-timer operate-task-timer (operate-task zk-handler id "kill" assignment-path status-path command-path)))
       
       (^String pauseTopology
         [this ^String id]
-        (operate-task zk-handler id "pause" assignment-path status-path command-path))
+        (mutils/time-timer operate-task-timer (operate-task zk-handler id "pause" assignment-path status-path command-path)))
 
       (^String activeTopology
         [this ^String id]
-        (operate-task zk-handler id "active" assignment-path status-path command-path))
+        (mutils/time-timer operate-task-timer (operate-task zk-handler id "active" assignment-path status-path command-path)))
       
       (^String reloadTopology
         [this ^String id]
-        (operate-task zk-handler id "reload" assignment-path status-path command-path))
+        (mutils/time-timer operate-task-timer (operate-task zk-handler id "reload" assignment-path status-path command-path)))
       
       (^String submitTask
         [this ^String id ^String jar ^String klass ^String group ^String type]
-        (submit-task zk-handler id jar klass floor-score group type assignment-path status-path command-path))
+        (mutils/time-timer submit-task-timer (submit-task zk-handler id jar klass floor-score group type assignment-path status-path command-path)))
 
       (^String operateTask
         [this ^String id ^String command]
-        (operate-task zk-handler id command assignment-path status-path command-path)))))
+        (mutils/time-timer operate-task-timer (operate-task zk-handler id command assignment-path status-path command-path))))))
 
 (defn launch-server! [conf]
   (let [zk-handler (zookeeper/mk-client conf (conf MAGPIE-ZOOKEEPER-SERVERS) (conf MAGPIE-ZOOKEEPER-PORT) :root (conf MAGPIE-ZOOKEEPER-ROOT))
@@ -214,7 +216,12 @@
         nimbus-info {"ip" (utils/ip) "hostname" (utils/hostname) "username" (utils/username) "port" (int (conf NIMBUS-THRIFT-PORT))}
         heartbeat-timer (timer/mk-timer)
         workerbeat-timer (timer/mk-timer)
-        service-handler# (service-handler conf zk-handler)
+        reg (mutils/get-registry)
+        health-check-timer (mutils/get-timer reg MAGPIE-NIMBUS-HEALTH-CHECK-TIMER-METRICS-NAME)
+        submit-task-timer (mutils/get-timer reg MAGPIE-NIMBUS-SUBMIT-TASK-TIMER-METRICS-NAME)
+        operate-task-timer (mutils/get-timer reg MAGPIE-NIMBUS-OPERATE-TASK-TIMER-METRICS-NAME)
+        jmx-report (jmx/reporter reg {})
+        service-handler# (service-handler conf zk-handler reg)
         floor-score (conf MAGPIE-FLOOR-SCORE 20)
         options (-> (TNonblockingServerSocket. (int (conf NIMBUS-THRIFT-PORT)))
                     (THsHaServer$Args.)
@@ -258,8 +265,7 @@
                          (log/info "no supervisor num:" @no-supervisor-num)
                          (log/info "lost supervisor num:" @lost-supervisor-num)
                          (log/info "error supervisor num:" @error-supervisor-num)
-                         (log/info "end health check!")))
-        jmx-report (jmx/reporter (mutils/get-registry) {})]
+                         (log/info "end health check!")))]
     (.addShutdownHook (Runtime/getRuntime) (Thread. (fn []
                                                       (timer/cancel-timer heartbeat-timer)
                                                       (timer/cancel-timer workerbeat-timer)
@@ -284,7 +290,7 @@
                                     (System/exit -1)))))
     (log/info "init health check!")
     (try
-      (health-check)
+      (mutils/time-timer health-check-timer (health-check))
       (catch Exception e
         (log/error (.toString e))))
     (log/info "finish init health check!")
@@ -354,7 +360,7 @@
                                                 (assign zk-handler id jar klass group type floor-score :last-supervisor (get-execute-supervisor)))))))
                                     (log/info "end to deal no-heartbeat tasks!")
 
-                                    (health-check)
+                                    (mutils/time-timer health-check-timer (health-check))
 )
                                   (catch Exception e
                                     (log/error e "error accurs in nimbus scheduling and checking..")

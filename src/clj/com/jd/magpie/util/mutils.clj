@@ -21,7 +21,7 @@
   (counters/value counter))
 
 (defn get-timer [reg names]
-  (timers/timer names))
+  (timers/timer reg names))
 
 (defn time-timer
   "(time-timer a-timer
@@ -29,3 +29,7 @@
        (fn-2 ...))"
   [timer fns]
   (timers/time! timer fns))
+
+(defn sample-timer
+  [timer]
+  (timers/sample timer))

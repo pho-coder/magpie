@@ -17,8 +17,6 @@
                           :net-bandwidth-score nil
                           :time-millis nil}))
 
-(def get-my-jobs-timer (atom nil))
-
 (defn get-my-jobs [zk-handler supervisor-id]
   (let [assignment-path "/assignments"
         supervisor-path "/supervisors"
@@ -101,10 +99,10 @@
           (log/info "launch job successfully...(topology id='" id "', jar='" jar "', class='" klass "')")))
       (log/info "command: " command))))
 
-(defn process-job [conf zk-handler supervisor-id]
-  (let [start-time (System/currentTimeMillis)
-        my-job-infos (mutils/time-timer @get-my-jobs-timer (get-my-jobs zk-handler supervisor-id))
-        _ (log/debug "my-job times" (- (System/currentTimeMillis) start-time))
+(defn process-job [conf zk-handler supervisor-id reg]
+  (let [get-my-jobs-timer (.get (.getTimers reg) (clojure.string/join "." MAGPIE-SUPERVISOR-GET-MY-JOBS-TIMER-METRICS-NAME))
+        launch-job-timer (.get (.getTimers reg) (clojure.string/join "." MAGPIE-SUPERVISOR-LAUNCH-JOB-TIMER-METRICS-NAME))
+        my-job-infos (mutils/time-timer get-my-jobs-timer (get-my-jobs zk-handler supervisor-id))
         pids-dir (conf MAGPIE-PIDS-DIR)
         cgroup-enable (conf MAGPIE-CGROUP-ENABLE false)
         cgname (conf MAGPIE-CGROUP-NAME "magpie")
@@ -133,7 +131,7 @@
           (if zk-data
             (let [command ((utils/bytes->map zk-data) "command")]
               (when (and command (not= command "kill"))
-                (launch-job conf job-info get-resources-url-func))))
+                (mutils/time-timer launch-job-timer (launch-job conf job-info get-resources-url-func)))))
           (when-not (utils/process-running? (get-pid node))
             (if zk-data
               (let [command ((utils/bytes->map zk-data) "command")]
@@ -237,10 +235,11 @@
         supervisor-info {"id" supervisor-id "ip" (utils/ip) "hostname" (utils/hostname) "username" (utils/username) "pid" pid "group" supervisor-group "max-net-bandwidth" supervisor-max-net-bandwidth}
         heartbeat-timer (timer/mk-timer)
         schedule-timer (timer/mk-timer)
-        metrics-names ["com.jd" "magpie"]
         reg (mutils/get-registry)
-        heartbeat-counter (mutils/get-counter reg (into metrics-names ["heartbeat-counter"]))
-        _ (reset! get-my-jobs-timer (mutils/get-timer reg (into metrics-names ["get-my-jobs-timer"])))
+        heartbeat-counter (mutils/get-counter reg MAGPIE-SUPERVISOR-HEARTBEAT-COUNTER-METRICS-NAME)
+        get-my-jobs-timer (mutils/get-timer reg MAGPIE-SUPERVISOR-GET-MY-JOBS-TIMER-METRICS-NAME)
+        launch-job-timer (mutils/get-timer reg MAGPIE-SUPERVISOR-LAUNCH-JOB-TIMER-METRICS-NAME)
+        process-job-timer (mutils/get-timer reg MAGPIE-SUPERVISOR-PROCESS-JOB-TIMER-METRICS-NAME)
         jmx-report (jmx/reporter reg {})]
     (.addShutdownHook (Runtime/getRuntime) (Thread. (fn []
                                                       (timer/cancel-timer heartbeat-timer)
@@ -268,7 +267,7 @@
     (timer/schedule-recurring schedule-timer 10 schedule-check-interval
                               (fn []
                                 (try
-                                  (process-job conf zk-handler supervisor-id)
+                                  (mutils/time-timer process-job-timer (process-job conf zk-handler supervisor-id reg))
                                   (catch Exception e
                                     (log/error e "error accurs in supervisor processing job")
                                     (System/exit -1)))))
