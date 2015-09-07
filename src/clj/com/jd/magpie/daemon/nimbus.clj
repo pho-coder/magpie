@@ -16,6 +16,11 @@
            [java.lang.ProcessBuilder$Redirect]
            [org.apache.thrift.transport TNonblockingServerTransport TNonblockingServerSocket]))
 
+(def tasks-health-info {:assigned-num (atom 0)
+                        :no-supervisor-num (atom 0)
+                        :lost-supervisor-num (atom 0)
+                        :error-supervisor-num (atom 0)})
+
 (defn get-all-supervisors [zk-handler supervisor-path group]
   (let [supervisors (zookeeper/get-children zk-handler supervisor-path false)
         supervisor-infos (map #(utils/bytes->map (zookeeper/get-data zk-handler (str supervisor-path "/" %) false)) supervisors)
@@ -280,10 +285,9 @@
                 (assign zk-handler id jar klass group type floor-score :last-supervisor (get-execute-supervisor)))))))
     (log/info "end to deal no-heartbeat tasks!")))
 
-(defn health-check
+(defn tasks-health-check
   "check whether tasks assignment ok"
   [zk-handler]
-  (log/info "start health check!")
   (let [assignment-path "/assignments"
         supervisor-path "/supervisors"
         yourtasks-path "/yourtasks"
@@ -305,7 +309,7 @@
                             "supervisor" nil)]
         (if (or (nil? supervisor) (= supervisor ""))
           (do (reset! no-supervisor-num (inc @no-supervisor-num))
-              (log/info "the task has no supervisor:" task-info))
+              (log/warn "the task has no supervisor:" task-info))
           (if-not (contains? supervisors supervisor)
             (do (reset! error-supervisor-num (inc @error-supervisor-num))
                 (log/error "the task's supervisor not exists:" task-info))
@@ -315,12 +319,17 @@
               (reset! assigned-num (inc @assigned-num))
               (do (zookeeper/create-node zk-handler (str yourtasks-path "/" supervisor "/" task) (utils/object->bytes {"assign-time" (utils/current-time-millis)}))
                   (reset! lost-supervisor-num (inc @lost-supervisor-num))
-                  (log/info "the task lost supervisor:" task-info)))))))
-    (log/info "assigned num:" @assigned-num)
-    (log/info "no supervisor num:" @no-supervisor-num)
-    (log/info "lost supervisor num:" @lost-supervisor-num)
-    (log/info "error supervisor num:" @error-supervisor-num)
-    (log/info "end health check!")))
+                  (log/warn "the task lost supervisor:" task-info)))))))
+    (reset! (:assigned-num tasks-health-info) @assigned-num)
+    (reset! (:no-supervisor-num tasks-health-info) @no-supervisor-num)
+    (reset! (:lost-supervisor-num tasks-health-info) @lost-supervisor-num)
+    (reset! (:error-supervisor-num tasks-health-info) @error-supervisor-num)
+    (if (or (> @no-supervisor-num 0) (> @lost-supervisor-num 0) (> @error-supervisor-num 0))
+      (do
+        (log/info "assigned num:" @assigned-num)
+        (log/warn "no supervisor num:" @no-supervisor-num)
+        (log/warn "lost supervisor num:" @lost-supervisor-num)
+        (log/error "error supervisor num:" @error-supervisor-num)))))
 
 (defn launch-server! [conf]
   (let [zk-handler (zookeeper/mk-client conf (conf MAGPIE-ZOOKEEPER-SERVERS) (conf MAGPIE-ZOOKEEPER-PORT) :root (conf MAGPIE-ZOOKEEPER-ROOT))
@@ -339,11 +348,12 @@
         workerbeat-timer (timer/mk-timer)
         reg (mutils/get-registry)
         heartbeat-counter (mutils/get-counter reg MAGPIE-NIMBUS-HEARTBEAT-COUNTER-METRICS-NAME)
-        health-check-timer (mutils/get-timer reg MAGPIE-NIMBUS-HEALTH-CHECK-TIMER-METRICS-NAME)
+        tasks-health-check-timer (mutils/get-timer reg MAGPIE-NIMBUS-TASKS-HEALTH-CHECK-TIMER-METRICS-NAME)
         submit-task-timer (mutils/get-timer reg MAGPIE-NIMBUS-SUBMIT-TASK-TIMER-METRICS-NAME)
         operate-task-timer (mutils/get-timer reg MAGPIE-NIMBUS-OPERATE-TASK-TIMER-METRICS-NAME)
         process-all-tasks-timer (mutils/get-timer reg MAGPIE-NIMBUS-PROCESS-ALL-TASKS-TIMER-METRICS-NAME)
         process-dead-tasks-timer (mutils/get-timer reg MAGPIE-NIMBUS-PROCESS-DEAD-TASKS-TIMER-METRICS-NAME)
+        tasks-assigned-num-gauge (mutils/get-gauge reg MAGPIE-NIMBUS-TASKS-HEALTH-CHECK-TIMER-METRICS-NAME @(:assigned-num tasks-health-info))
         jmx-report (jmx/reporter reg {})
         service-handler# (service-handler conf zk-handler reg)
         floor-score (conf MAGPIE-FLOOR-SCORE 20)
@@ -381,7 +391,7 @@
                                     (System/exit -1)))))
     (log/info "init health check!")
     (try
-      (mutils/time-timer health-check-timer (health-check zk-handler))
+      (mutils/time-timer tasks-health-check-timer (tasks-health-check zk-handler))
       (catch Exception e
         (log/error (.toString e))))
     (log/info "finish init health check!")
@@ -391,7 +401,7 @@
                                 (try
                                   (mutils/time-timer process-all-tasks-timer (process-all-tasks conf zk-handler))
                                   (mutils/time-timer process-dead-tasks-timer (process-dead-tasks conf zk-handler))
-                                  (mutils/time-timer health-check-timer (health-check zk-handler))
+                                  (mutils/time-timer tasks-health-check-timer (tasks-health-check zk-handler))
                                   (catch Exception e
                                     (log/error e "error accurs in nimbus scheduling and checking..")
                                     (System/exit -1)))

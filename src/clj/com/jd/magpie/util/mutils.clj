@@ -1,7 +1,8 @@
 (ns com.jd.magpie.util.mutils
   (:require [metrics.core :refer [new-registry]]
             [metrics.counters :as counters]
-            [metrics.timers :as timers]))
+            [metrics.timers :as timers]
+            [metrics.gauges :as gauges]))
 
 (defn get-registry []
   (new-registry))
@@ -33,3 +34,7 @@
 (defn sample-timer
   [timer]
   (timers/sample timer))
+
+(defn get-gauges
+  [reg names a-fn]
+  (gauges/gauge-fn reg names a-fn))
