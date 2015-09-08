@@ -215,7 +215,6 @@
         yourtasks-path "/yourtasks"
         tasks (set (zookeeper/get-children zk-handler assignment-path false))
         now (utils/current-time-millis)]
-    (log/info "start to deal all task commands!")
     (doseq [node tasks]
       (let [command-info (utils/bytes->map (zookeeper/get-data zk-handler (str command-path "/" node) false))
             update-time (command-info "time")
@@ -248,8 +247,7 @@
           "pause" (let [status (utils/bytes->string (zookeeper/get-data zk-handler (str status-path "/" node) false))]
                     (when (and (not= status "paused") (> (- now update-time) (conf MAGPIE-SCHEDULE-TIMEOUT)))
                       (log/error "topology pause timeout......(topology id='" id "', status='" status "')")))
-          "default")))
-    (log/info "end to deal all task commands!")))
+          "default")))))
 
 (defn process-dead-tasks
   "process all no heartbeat tasks"
@@ -262,7 +260,6 @@
         tasks (set (zookeeper/get-children zk-handler assignment-path false))
         now (utils/current-time-millis)
         nodes (clojure.set/difference tasks workers)]
-    (log/info "start to deal no-heartbeat tasks!")
     (doseq [node nodes]
       (let [command-info (utils/bytes->map (zookeeper/get-data zk-handler (str command-path "/" node) false))
             update-time (command-info "time")
@@ -282,8 +279,7 @@
                      (log/info "topology stop successfully...(topology id='" id "', jar='" jar "', class='" klass "')"))
           (do (when (> (- now update-time) (conf MAGPIE-SCHEDULE-TIMEOUT))
                 (log/error "topology heartbeat miss..will be re-scheduled..(topology id='" id "')")
-                (assign zk-handler id jar klass group type floor-score :last-supervisor (get-execute-supervisor)))))))
-    (log/info "end to deal no-heartbeat tasks!")))
+                (assign zk-handler id jar klass group type floor-score :last-supervisor (get-execute-supervisor)))))))))
 
 (defn tasks-health-check
   "check whether tasks assignment ok"
@@ -353,7 +349,14 @@
         operate-task-timer (mutils/get-timer reg MAGPIE-NIMBUS-OPERATE-TASK-TIMER-METRICS-NAME)
         process-all-tasks-timer (mutils/get-timer reg MAGPIE-NIMBUS-PROCESS-ALL-TASKS-TIMER-METRICS-NAME)
         process-dead-tasks-timer (mutils/get-timer reg MAGPIE-NIMBUS-PROCESS-DEAD-TASKS-TIMER-METRICS-NAME)
-        tasks-assigned-num-gauge (mutils/get-gauge reg MAGPIE-NIMBUS-TASKS-HEALTH-CHECK-TIMER-METRICS-NAME @(:assigned-num tasks-health-info))
+        tasks-assigned-num-gauge (mutils/get-gauge reg MAGPIE-NIMBUS-TASKS-ASSIGNED-NUM-GAUGE-METRICS-NAME (fn []
+                                                                                                             @(:assigned-num tasks-health-info)))
+        tasks-no-supervisor-num-gauge (mutils/get-gauge reg MAGPIE-NIMBUS-TASKS-NO-SUPERVISOR-NUM-GAUGE-METRICS-NAME (fn []
+                                                                                                                       @(:no-supervisor-num tasks-health-info)))
+        tasks-lost-supervisor-num-gauge (mutils/get-gauge reg MAGPIE-NIMBUS-TASKS-LOST-SUPERVISOR-NUM-GAUGE-METRICS-NAME (fn []
+                                                                                                                           @(:lost-supervisor-num tasks-health-info)))
+        tasks-error-supervisor-num-gauge (mutils/get-gauge reg MAGPIE-NIMBUS-TASKS-ERROR-SUPERVISOR-NUM-GAUGE-METRICS-NAME (fn []
+                                                                                                                             @(:error-supervisor-num tasks-health-info)))
         jmx-report (jmx/reporter reg {})
         service-handler# (service-handler conf zk-handler reg)
         floor-score (conf MAGPIE-FLOOR-SCORE 20)
@@ -397,15 +400,13 @@
     (log/info "finish init health check!")
     (timer/schedule-recurring workerbeat-timer 5 schedule-check-interval                              
                               (fn []
-                                (log/info "nimbus schedule begins!")
                                 (try
                                   (mutils/time-timer process-all-tasks-timer (process-all-tasks conf zk-handler))
                                   (mutils/time-timer process-dead-tasks-timer (process-dead-tasks conf zk-handler))
                                   (mutils/time-timer tasks-health-check-timer (tasks-health-check zk-handler))
                                   (catch Exception e
                                     (log/error e "error accurs in nimbus scheduling and checking..")
-                                    (System/exit -1)))
-                                (log/info "nimbus schedule ends!")))
+                                    (System/exit -1)))))
     (jmx/start jmx-report)
     (.serve server)))
 

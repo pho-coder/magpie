@@ -35,6 +35,6 @@
   [timer]
   (timers/sample timer))
 
-(defn get-gauges
+(defn get-gauge
   [reg names a-fn]
   (gauges/gauge-fn reg names a-fn))

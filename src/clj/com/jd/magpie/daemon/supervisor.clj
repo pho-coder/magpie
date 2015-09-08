@@ -17,6 +17,18 @@
                           :net-bandwidth-score nil
                           :time-millis nil}))
 
+(def resources-info {:rx-net-bandwidth (atom nil)
+                     :tx-net-bandwidth (atom nil)
+                     :net-bandwidth-score (atom 100)
+                     :total-memory (atom nil)
+                     :free-memory (atom nil)
+                     :memory-score (atom 100)
+                     :total-swap (atom nil)
+                     :free-swap (atom nil)
+                     :load-avg (atom nil)
+                     :cpu-core (atom nil)
+                     :cpu-score (atom 100)})
+
 (defn get-my-jobs [zk-handler supervisor-id]
   (let [assignment-path "/assignments"
         supervisor-path "/supervisors"
@@ -187,9 +199,26 @@
                                  :rx-net-bandwidth rx-net-bandwidth
                                  :tx-net-bandwidth tx-net-bandwidth
                                  :net-bandwidth-score net-bandwidth-score})
+          (reset! (:rx-net-bandwidth resources-info) rx-net-bandwidth)
+          (reset! (:tx-net-bandwidth resources-info) tx-net-bandwidth)
+          (reset! (:net-bandwidth-score resources-info) net-bandwidth-score)
           {"rx-net-bandwidth" rx-net-bandwidth
            "tx-net-bandwidth" tx-net-bandwidth
            "net-bandwidth-score" net-bandwidth-score})))))
+
+(defn get-resources-info
+  "get memory swap cpu info"
+  []
+  (let [resources-info-now (utils/resources-info)]
+    (reset! (:total-memory resources-info) (resources-info-now "total-memory"))
+    (reset! (:free-memory resources-info) (resources-info-now "free-memory"))
+    (reset! (:memory-score resources-info) (resources-info-now "memory-score"))
+    (reset! (:total-swap resources-info) (resources-info-now "total-swap"))
+    (reset! (:free-swap resources-info) (resources-info-now "free-swap"))
+    (reset! (:load-avg resources-info) (resources-info-now "load-avg"))
+    (reset! (:cpu-core resources-info) (resources-info-now "cpu-core"))
+    (reset! (:cpu-score resources-info) (resources-info-now "cpu-score"))
+    resources-info-now))
 
 (defn check-env [conf]
   (log/info "check env!")
@@ -240,6 +269,28 @@
         get-my-jobs-timer (mutils/get-timer reg MAGPIE-SUPERVISOR-GET-MY-JOBS-TIMER-METRICS-NAME)
         launch-job-timer (mutils/get-timer reg MAGPIE-SUPERVISOR-LAUNCH-JOB-TIMER-METRICS-NAME)
         process-job-timer (mutils/get-timer reg MAGPIE-SUPERVISOR-PROCESS-JOB-TIMER-METRICS-NAME)
+        rx-net-bandwidth-gauge (mutils/get-gauge reg MAGPIE-SUPERVISOR-RX-NET-BANDWIDTH-GAUGE-METRICS-NAME (fn []
+                                                                                                             (.toBigInteger @(:rx-net-bandwidth resources-info))))
+        tx-net-bandwidth-gauge (mutils/get-gauge reg MAGPIE-SUPERVISOR-TX-NET-BANDWIDTH-GAUGE-METRICS-NAME (fn []
+                                                                                                             (.toBigInteger @(:tx-net-bandwidth resources-info))))
+        net-bandwidth-score-gauge (mutils/get-gauge reg MAGPIE-SUPERVISOR-NET-BANDWIDTH-SCORE-GAUGE-METRICS-NAME (fn []
+                                                                                                                   (.toBigInteger @(:net-bandwidth-score resources-info))))
+        total-memory-gauge (mutils/get-gauge reg MAGPIE-SUPERVISOR-TOTAL-MEMORY-GAUGE-METRICS-NAME (fn []
+                                                                                                     @(:total-memory resources-info)))
+        free-memory-gauge (mutils/get-gauge reg MAGPIE-SUPERVISOR-FREE-MEMORY-GAUGE-METRICS-NAME (fn []
+                                                                                                   @(:free-memory resources-info)))
+        memory-score-gauge (mutils/get-gauge reg MAGPIE-SUPERVISOR-MEMORY-SCORE-GAUGE-METRICS-NAME (fn []
+                                                                                                     @(:memory-score resources-info)))
+        total-swap-gauge (mutils/get-gauge reg MAGPIE-SUPERVISOR-TOTAL-SWAP-GAUGE-METRICS-NAME (fn []
+                                                                                                 @(:total-swap resources-info)))
+        free-swap-gauge (mutils/get-gauge reg MAGPIE-SUPERVISOR-FREE-SWAP-GAUGE-METRICS-NAME (fn []
+                                                                                               @(:free-swap resources-info)))
+        load-avg-gauge (mutils/get-gauge reg MAGPIE-SUPERVISOR-LOAD-AVG-GAUGE-METRICS-NAME (fn []
+                                                                                             @(:load-avg resources-info)))
+        cpu-core-gauge (mutils/get-gauge reg MAGPIE-SUPERVISOR-CPU-CORE-GAUGE-METRICS-NAME (fn []
+                                                                                             @(:cpu-core resources-info)))
+        cpu-score-gauge (mutils/get-gauge reg MAGPIE-SUPERVISOR-CPU-SCORE-GAUGE-METRICS-NAME (fn []
+                                                                                               @(:cpu-score resources-info)))
         jmx-report (jmx/reporter reg {})]
     (.addShutdownHook (Runtime/getRuntime) (Thread. (fn []
                                                       (timer/cancel-timer heartbeat-timer)
@@ -248,8 +299,8 @@
                                                       (jmx/stop jmx-report))))
     (log/info "Starting supervisor...")
     (config/init-zookeeper zk-handler)
-    (zookeeper/create-node zk-handler supervisor-node (utils/object->bytes (conj supervisor-info (utils/resources-info) (get-net-bandwidth net-bandwidth-calculate-interval supervisor-max-net-bandwidth))) :ephemeral)
-
+    (zookeeper/create-node zk-handler supervisor-node (utils/object->bytes (conj supervisor-info (get-resources-info) (get-net-bandwidth net-bandwidth-calculate-interval supervisor-max-net-bandwidth))) :ephemeral)
+    
     (if-not (zookeeper/exists-node? zk-handler (str yourtasks-path "/" supervisor-id) false)
       (do (zookeeper/mkdirs zk-handler (str yourtasks-path "/" supervisor-id))
           (log/info "create my tasks path!")))
@@ -257,10 +308,25 @@
     (timer/schedule-recurring heartbeat-timer 10 heartbeat-interval
                               (fn []
                                 (try
-                                  (zookeeper/set-data zk-handler supervisor-node (utils/object->bytes (conj supervisor-info (utils/resources-info) (get-net-bandwidth net-bandwidth-calculate-interval supervisor-max-net-bandwidth))))
+                                  (zookeeper/set-data zk-handler supervisor-node (utils/object->bytes (conj supervisor-info (get-resources-info) (get-net-bandwidth net-bandwidth-calculate-interval supervisor-max-net-bandwidth))))
                                   (mutils/inc-counter heartbeat-counter)
                                   (when (= (mod (mutils/read-counter heartbeat-counter) 300) 0)
                                     (log/info "heartbeat counts:" (mutils/read-counter heartbeat-counter)))
+                                  (when (< @(:net-bandwidth-score resources-info) 20)
+                                    (log/warn "net bandwidth resource warnning:"
+                                              "\nrx-net-bandwidth:" @(:rx-net-bandwidth resources-info)
+                                              "\ntx-net-bandwidth:" @(:tx-net-bandwidth resources-info)
+                                              "\nnet-bandwidth-score:" @(:net-bandwidth-score resources-info)))
+                                  (when (< @(:memory-score resources-info) 20)
+                                    (log/warn "memory resource warnning:"
+                                              "\ntotal-memory:" @(:total-memory resources-info)
+                                              "\nfree-memory:" @(:free-memory resources-info)
+                                              "\nmemory-score:" @(:memory-score resources-info)))
+                                  (when (< @(:cpu-score resources-info) 20)
+                                    (log/warn "cpu resource warnning:"
+                                              "\nload-avg:" @(:load-avg resources-info)
+                                              "\ncpu-core:" @(:cpu-core resources-info)
+                                              "\ncpu-score:" @(:cpu-score resources-info)))
                                   (catch Exception e
                                     (log/error e "error accurs in supervisor heartbeat timer..")
                                     (System/exit -1)))))
