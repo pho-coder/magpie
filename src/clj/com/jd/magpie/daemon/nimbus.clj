@@ -368,11 +368,17 @@
         server (THsHaServer. options)
         nimbus-node (zookeeper/create-node zk-handler (str nimbus-path "/nimbus-") (utils/object->bytes (conj nimbus-info (utils/resources-info))) :ephemeral-sequential)]
     (.addShutdownHook (Runtime/getRuntime) (Thread. (fn []
+                                                      (log/info "cancel heartbeat-timer")
                                                       (timer/cancel-timer heartbeat-timer)
+                                                      (log/info "cancel workerbeat-timer")
                                                       (timer/cancel-timer workerbeat-timer)
+                                                      (log/info "close zk handler")
                                                       (.close zk-handler)
+                                                      (log/info "stop jmx report")
                                                       (jmx/stop jmx-report)
-                                                      (.stop server))))
+                                                      (log/info "stop thrift server")
+                                                      (.stop server)
+                                                      (log/info "nimbus exits successfully!"))))
     (log/info "Starting Nimbus server")
     (log/info "nimbus zookeeper node: " nimbus-node)
     (loop [childs# (zookeeper/get-children zk-handler nimbus-path false)]

@@ -61,3 +61,8 @@
                   {:success false}))))
           {:success false}))
       {:success false})))
+
+(defn get-cgroup-jobs
+  [name]
+  (set (into (utils/read-dir-dirslist (str "/cgroup/cpu/" name))
+             (utils/read-dir-dirslist (str "/cgroup/memory/" name)))))

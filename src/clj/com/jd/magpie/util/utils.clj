@@ -318,7 +318,13 @@
   (if (exists-file? dir)
     (let [content-files (.listFiles (File. dir))]
       (map #(.getName ^File %) content-files))
-    [] ))
+    []))
+
+(defn read-dir-dirslist
+  [dir]
+  (if (exists-file? dir)
+    (let [content-files (.listFiles (File. dir))]
+      (map #(.getName ^File %) (filter #(.isDirectory ^File %) content-files)))))
 
 (defn read-file-contents [filepath]
   (if (exists-file? filepath)

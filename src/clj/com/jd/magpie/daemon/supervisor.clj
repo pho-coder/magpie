@@ -152,7 +152,13 @@
             (utils/ensure-process-killed! (get-pid node))
             (utils/rmr (get-pid-dir node))
             (when cgroup-enable
-              (cgutils/cgdelete cgname cgchild-name))))))))
+              (cgutils/cgdelete cgname cgchild-name))))))
+    (when cgroup-enable
+      (let [cgroup-jobs (cgutils/get-cgroup-jobs cgname)
+            waste-cgjobs (clojure.set/difference cgroup-jobs my-jobs)]
+        (doseq [job waste-cgjobs]
+          (log/warn "task:" job "stopped, but cgroup dir exists! Clearing...")
+          (cgutils/cgdelete cgname job))))))
 
 (defn get-net-bandwidth [calculate-interval max-net-bandwidth]
   (let [mill (* 1024 1024)
@@ -293,10 +299,15 @@
                                                                                                @(:cpu-score resources-info)))
         jmx-report (jmx/reporter reg {})]
     (.addShutdownHook (Runtime/getRuntime) (Thread. (fn []
+                                                      (log/info "cancel heartbeat-timer")
                                                       (timer/cancel-timer heartbeat-timer)
+                                                      (log/info "cancel schedule-timer")
                                                       (timer/cancel-timer schedule-timer)
+                                                      (log/info "close zk handler")
                                                       (.close zk-handler)
-                                                      (jmx/stop jmx-report))))
+                                                      (log/info "stop jmx report")
+                                                      (jmx/stop jmx-report)
+                                                      (log/info "supervisor exits successfully!"))))
     (log/info "Starting supervisor...")
     (config/init-zookeeper zk-handler)
     (zookeeper/create-node zk-handler supervisor-node (utils/object->bytes (conj supervisor-info (get-resources-info) (get-net-bandwidth net-bandwidth-calculate-interval supervisor-max-net-bandwidth))) :ephemeral)
