@@ -1,13 +1,3 @@
-                                                                          b
-                                                                          (recur (rest t1) (rest t2))))))))) versions)) suffix)))))
-(import 'java.io.FilenameFilter)
-(defn find-best-jar
-  [path prefix suffix & {:keys [version]}]
-  (if version
-    (str prefix version suffix)
-    (let [^File dir (File. path)
-          jars (.list dir (reify FilenameFilter
-                            (accept [this dir name]
                               (and (.startsWith name prefix) (.endsWith name suffix)))))
           versions (map #(clojure.string/split (subs % (count prefix) (- (count %) (count suffix))) #"\.") jars)]
       (when (and (.exists dir) jars)
@@ -498,3 +488,13 @@ quit
 (utils/local-mkdirs "/tmp/a/b")
 quit
 exit;
+exit
+(use 'com.jd.magpie.util.utils)
+(object->jsonstring "a")
+(def a {:a "a" "b" 12})
+(object->jsonstring a)
+(object->bytes a)
+a
+(string->json "a")
+(string->json "{\"b\":12,\":a\":\"a\"}")
+exit

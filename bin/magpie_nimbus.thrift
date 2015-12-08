@@ -24,5 +24,7 @@ service Nimbus {
   string activeTopology(1: string id)
   string reloadTopology(1: string id)
 
+  string submitTask(1: string id, 2: string jar, 3: string klass, 4: string group, 5: string type)
+  string operateTask(1: string id, 2: string command)
 }
 
