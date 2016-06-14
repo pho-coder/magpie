@@ -8,3 +8,4 @@ pom.xml
 logs/
 .lein-repl-history
 .lein-failures
+build-jar

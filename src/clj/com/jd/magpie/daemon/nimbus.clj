@@ -119,8 +119,15 @@
         (log/error (.toString e))))
     (log/info "clear task" node "zk nodes successfully!")))
 
-(defn submit-task [zk-handler id jar klass floor-score group type  assignment-path status-path command-path]
-  (let [result (atom "submit failure!")]
+(defn submit-task
+  "returncode -1 : unkonwn error
+               1 : task id exists and is running
+               2 : task id exists but is not running
+               0 : task id not exists submit success"
+  [zk-handler id jar klass floor-score group type  assignment-path status-path command-path]
+  (let [result (atom (utils/object->jsonstring {"success" false
+                                                "info" "submit failure!"
+                                                "returncode" -1}))]
           (try
             (let [node id
                   task-path (str assignment-path "/" node)
@@ -131,24 +138,38 @@
                       command (command-info "command")]
                   (if (= command "run")
                     (do (zookeeper/set-data zk-handler (str command-path "/" node) (utils/object->bytes {"command" "reload" "time" (utils/current-time-millis)}))
-                        (reset! result (str "This task has already been running! Will be reloaded! (job id='" id "', jar='" jar "', class='" klass "', group='" group "', type=" type "')")))
-                    (reset! result (str "This task has already been running! current command='" command "' (job id='" id "', jar='" jar "', class='" klass "', group='" group "', type=" type "')")))
+                        (reset! result (utils/object->jsonstring {"info" (str "This task has already been running! Will be reloaded! (job id='" id "', jar='" jar "', class='" klass "', group='" group "', type=" type "')")
+                                                                  "success" true
+                                                                  "returncode" 1})))
+                    (reset! result (utils/object->jsonstring {"info" (str "This task has already been running! current command='" command "' (job id='" id "', jar='" jar "', class='" klass "', group='" group "', type=" type "')")
+                                                              "success" true
+                                                              "returncode" 2})))
                   (log/warn @result))
                 (do (zookeeper/create-node zk-handler (str assignment-path "/" node) (utils/object->bytes {"start-time" (utils/current-time-millis) "jar" jar "class" klass "id" id "group" group "type" type}))
                     (zookeeper/create-node zk-handler (str command-path "/" node) (utils/object->bytes {"command" "init" "time" (utils/current-time-millis)}))
                     (zookeeper/create-node zk-handler (str status-path "/" node) (utils/object->bytes {"command" "init" "time" (utils/current-time-millis)}))
                     (assign zk-handler id jar klass group type floor-score)
-                    (reset! result (str "This task will be submit soon! (job id='" id "', jar='" jar "', class='" klass "', group='" group "', type=" type "')")))))
+                    (reset! result (utils/object->jsonstring {"info" (str "This task will be submit soon! (job id='" id "', jar='" jar "', class='" klass "', group='" group "', type=" type "')")
+                                                              "success" true
+                                                              "returncode" 0})))))
             (catch Throwable e
-              (reset! result (str  e "Task submission exception. (job id='" id "', jar='" jar "', class='" klass "', group='" group "', type=" type "')"))
+              (reset! result (utils/object->jsonstring {"info" (str e "Task submission exception. (job id='" id "', jar='" jar "', class='" klass "', group='" group "', type=" type "')")
+                                                        "success" false
+                                                        "returncode" -1}))
               (log/error @result)))
           @result))
 
-(defn operate-task [zk-handler id command assignment-path status-path command-path]
+(defn operate-task
+  "returncode -1 : unknown error
+               1 : task id not exists
+               0 : task id exists and command submit success"
+  [zk-handler id command assignment-path status-path command-path]
   (let [commands (hash-set "kill" "pause" "active" "reload")]
     (if (not (contains? commands command))
       (str command " command is unsupported!")
-      (let [result (atom (str command " failure!"))]
+      (let [result (atom (utils/object->jsonstring {"info" (str command " failure!")
+                                                    "success" false
+                                                    "returncode" -1}))]
         (try
           (let [node id
                 task-path (str assignment-path "/" node)
@@ -160,12 +181,18 @@
                 running? (zookeeper/exists-node? zk-handler task-path false)]
             (if running?
               (do (zookeeper/set-data zk-handler (str command-path "/" node) (utils/object->bytes {"command" command-str "time" (utils/current-time-millis)}))
-                  (reset! result (str command " command submitted successfully!, (task id='" id "')"))
+                  (reset! result (utils/object->jsonstring {"info" (str command " command submitted successfully!, (task id='" id "')")
+                                                            "success" true
+                                                            "returncode" 0}))
                   (log/info @result))
-              (do (reset! result (str command "command submitted error! task is not running, (task id='" id "')"))
+              (do (reset! result (utils/object->jsonstring {"info" (str command "command submitted error! task is not running, (task id='" id "')")
+                                                            "success" false
+                                                            "returncode" 1}))
                   (log/error @result))))
           (catch Throwable e
-            (reset! result (str e "Task " command " exception. (task id='" id "')"))
+            (reset! result (utils/object->jsonstring {"info" (str e "Task " command " exception. (task id='" id "')")
+                                                      "success" false
+                                                      "returncode" -1}))
             (log/error @result)))
         @result))))
 
