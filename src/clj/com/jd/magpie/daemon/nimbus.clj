@@ -147,7 +147,7 @@
                   (log/warn @result))
                 (do (zookeeper/create-node zk-handler (str assignment-path "/" node) (utils/object->bytes {"start-time" (utils/current-time-millis) "jar" jar "class" klass "id" id "group" group "type" type}))
                     (zookeeper/create-node zk-handler (str command-path "/" node) (utils/object->bytes {"command" "init" "time" (utils/current-time-millis)}))
-                    (zookeeper/create-node zk-handler (str status-path "/" node) (utils/object->bytes {"command" "init" "time" (utils/current-time-millis)}))
+                    (zookeeper/create-node zk-handler (str status-path "/" node) (utils/string->bytes "initing"))
                     (assign zk-handler id jar klass group type floor-score)
                     (reset! result (utils/object->jsonstring {"info" (str "This task will be submit soon! (job id='" id "', jar='" jar "', class='" klass "', group='" group "', type=" type "')")
                                                               "success" true
