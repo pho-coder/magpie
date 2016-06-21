@@ -161,12 +161,15 @@
 
 (defn operate-task
   "returncode -1 : unknown error
-               1 : task id not exists
+               1 : command is unsupported
+               2 : task id not exists
                0 : task id exists and command submit success"
   [zk-handler id command assignment-path status-path command-path]
   (let [commands (hash-set "kill" "pause" "active" "reload")]
     (if (not (contains? commands command))
-      (str command " command is unsupported!")
+      (utils/object->jsonstring {"info" (str command " command is unsupported!")
+                                 "success" false
+                                 "returncode" 1})
       (let [result (atom (utils/object->jsonstring {"info" (str command " failure!")
                                                     "success" false
                                                     "returncode" -1}))]
@@ -187,7 +190,7 @@
                   (log/info @result))
               (do (reset! result (utils/object->jsonstring {"info" (str command "command submitted error! task is not running, (task id='" id "')")
                                                             "success" false
-                                                            "returncode" 1}))
+                                                            "returncode" 2}))
                   (log/error @result))))
           (catch Throwable e
             (reset! result (utils/object->jsonstring {"info" (str e "Task " command " exception. (task id='" id "')")
