@@ -31,9 +31,9 @@
         memory-file (str "/cgroup/memory/" name "/" child-name "/memory.limit_in_bytes")
         memsw-file (str "/cgroup/memory/" name "/" child-name "/memory.memsw.limit_in_bytes")]
     (try
-      (spit cpu-file (str (int (* cpu-cores 100000))))
-      (spit memory-file (str (int (* memory 1024 1024))))
-      (spit memsw-file (str (int (* memsw 1024 1024))))
+      (spit cpu-file (str (bigdec (* cpu-cores 100000))))
+      (spit memory-file (str (bigdec (* memory 1024 1024))))
+      (spit memsw-file (str (bigdec (* memsw 1024 1024))))
       {:success true}
       (catch Exception e
         (log/error "cgvalues write file error:" (.toString e))
