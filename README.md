@@ -1,4 +1,6 @@
-# Introduction to jrdw
+# Introduction to magpie
+
+magpie项目于2013年完成第一版本，最初的目的是服务于最早的一些实时数据库日志接入解析任务的高可用需求，后续逐渐应用于团队其他的一些通过worker高可用的需求。该项目是高可用平台代码，与之配套的有一套magpie-framework作为应用worker的开发框架。该项目整体借鉴于storm早期版本的调度逻辑和实现思路，在调度层面概念和storm基本一致，比如nimbus，supervisor等概念。
 
 lein uberjar打包，然后把相关文件集中到这个工程中来，最终工程结构为：
 
