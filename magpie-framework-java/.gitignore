@@ -1,0 +1,9 @@
+*.class
+.idea/
+target/
+magpie-framework.iml
+
+# Package Files #
+*.jar
+*.war
+*.ear
