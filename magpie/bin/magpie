@@ -12,6 +12,11 @@ PID_FILE="$MAGPIE_LOG_DIR/.${MAGPIE_PROJECT}.run.pid"
 mkdir -p $MAGPIE_LOG_DIR
 MAGPIE_HEAP_OPTS="-Xmx256M -Xms128M"
 
+MAGPIE_JMX_ENABLE=true
+MAGPIE_JMX_PORT=7373
+MAGPIE_JMX_ACCESS_FILE=${MAGPIE_CONF_DIR}/magpie.jmx.access
+MAGPIE_JMX_PASSWORD_FILE=${MAGPIE_CONF_DIR}/magpie.jmx.password
+
 function running(){
 	if [ -f "$PID_FILE" ]; then
 		pid=$(cat "$PID_FILE")
@@ -43,11 +48,23 @@ function start_server() {
      	  fi
         fi
 	CLASSPATH="$MAGPIE_CONF_DIR:$MASTER_JARS"
-	nohup "$RUNNER" $MAGPIE_HEAP_OPTS -cp "$CLASSPATH" -Djava.library.path="$MAGPIE_NATIVE_DIR" -Dmagpie.configuration="$MAGPIE_CONF_DIR" -Dlog4j.configuration=magpie.log4j.properties -Dmagpie.home="$MAGPIE_HOME" -Dmagpie.project="$MAGPIE_PROJECT" com.jd.magpie.daemon.${MAGPIE_PROJECT} "$@" > "$MAGPIE_LOG_DIR"/"$MAGPIE_PROJECT".out 2>&1 < /dev/null &
-	echo $! > $PID_FILE
+        if [ "$@"x = "nimbus"x ]; then
+          MAGPIE_JMX_PORT=7171
+        elif [ "$@"x = "supervisor"x ]; then
+            MAGPIE_JMX_PORT=7373
+        else
+          MAGPIE_JMX_ENABLE=false
+        fi
+        MAGPIE_JMX_PARAMETERS="-Dcom.sun.management.jmxremote=true -Dcom.sun.management.jmxremote.port=${MAGPIE_JMX_PORT} -Dcom.sun.management.jmxremote.authenticate=true -Dcom.sun.management.jmxremote.access.file=${MAGPIE_JMX_ACCESS_FILE} -Dcom.sun.management.jmxremote.password.file=${MAGPIE_JMX_PASSWORD_FILE} -Dcom.sun.management.jmxremote.ssl=false"
+        if ${MAGPIE_JMX_ENABLE} == true ; then
+	  nohup "$RUNNER" $MAGPIE_HEAP_OPTS ${MAGPIE_JMX_PARAMETERS} -cp "$CLASSPATH" -Djava.library.path="$MAGPIE_NATIVE_DIR" -Dmagpie.configuration="$MAGPIE_CONF_DIR" -Dlog4j.configuration=magpie.log4j.properties -Dmagpie.home="$MAGPIE_HOME" -Dmagpie.project="$MAGPIE_PROJECT" com.jd.magpie.daemon.${MAGPIE_PROJECT} "$@" > "$MAGPIE_LOG_DIR"/"$MAGPIE_PROJECT".out 2>&1 < /dev/null &
+        else
+	  nohup "$RUNNER" $MAGPIE_HEAP_OPTS -cp "$CLASSPATH" -Djava.library.path="$MAGPIE_NATIVE_DIR" -Dmagpie.configuration="$MAGPIE_CONF_DIR" -Dlog4j.configuration=magpie.log4j.properties -Dmagpie.home="$MAGPIE_HOME" -Dmagpie.project="$MAGPIE_PROJECT" com.jd.magpie.daemon.${MAGPIE_PROJECT} "$@" > "$MAGPIE_LOG_DIR"/"$MAGPIE_PROJECT".out 2>&1 < /dev/null &
+        fi
+        echo $! > $PID_FILE
     	chmod 755 $PID_FILE
-	sleep 1;
-	tail -f "$MAGPIE_LOG_DIR"/${MAGPIE_PROJECT}.log
+#	sleep 1;
+#	tail -f "$MAGPIE_LOG_DIR"/${MAGPIE_PROJECT}.log
 }
 
 function stop_server() {
