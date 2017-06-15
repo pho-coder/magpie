@@ -21,7 +21,7 @@
                  [org.clojure/tools.logging "0.4.0"]
                  [org.yaml/snakeyaml "1.18"]
                  [org.apache.thrift/libthrift "0.10.0"]
-                 [org.apache.curator/curator-framework "3.3.0"]
+                 [org.apache.curator/curator-framework "2.12.0"]
                  [org.slf4j/slf4j-api "1.7.25"]
                  [org.slf4j/slf4j-log4j12 "1.7.25"]
                  [sigmund/sigmund "0.1.1"]
