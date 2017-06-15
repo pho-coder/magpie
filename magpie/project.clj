@@ -1,4 +1,4 @@
-(defproject magpie "1.1.6.0909-SNAPSHOT"
+(defproject magpie "2.0-SNAPSHOT"
   :description "FIXME: write description"
   :url "http://example.com/FIXME"
   :license {:name "Eclipse Public License"
@@ -13,21 +13,21 @@
                  ["sonatype" {:url "http://oss.sonatype.org/content/repositories/releases"
                               :releases {:checksum :fail :update :always}}]
                  ["cloudera" "https://repository.cloudera.com/artifactory/cloudera-repos"]]
-  :dependencies [[org.clojure/clojure "1.6.0"]
-                 [org.clojure/tools.cli "0.3.0"]
-		 [clj-http "0.9.2"]
-                 [commons-io "2.4"]
-                 [org.apache.commons/commons-exec "1.1"]
-                 [org.clojure/tools.logging "0.2.6"]
-                 [org.yaml/snakeyaml "1.11"]
-                 [org.apache.thrift/libthrift "0.9.1"]
-                 [org.apache.curator/curator-framework "2.6.0"]
-                 [org.slf4j/slf4j-api "1.7.5"]
-                 [org.slf4j/slf4j-log4j12 "1.7.5"]
+  :dependencies [[org.clojure/clojure "1.8.0"]
+                 [org.clojure/tools.cli "0.3.5"]
+		 [clj-http "3.6.1"]
+                 [commons-io "2.5"]
+                 [org.apache.commons/commons-exec "1.3"]
+                 [org.clojure/tools.logging "0.4.0"]
+                 [org.yaml/snakeyaml "1.18"]
+                 [org.apache.thrift/libthrift "0.10.0"]
+                 [org.apache.curator/curator-framework "3.3.0"]
+                 [org.slf4j/slf4j-api "1.7.25"]
+                 [org.slf4j/slf4j-log4j12 "1.7.25"]
                  [sigmund/sigmund "0.1.1"]
-                 [org.codehaus.jackson/jackson-mapper-asl "1.9.9"]
-                 [org.json/json "20131018"]
-                 [metrics-clojure "2.5.1"]]
+                 [org.codehaus.jackson/jackson-mapper-asl "1.9.13"]
+                 [org.json/json "20170516"]
+                 [metrics-clojure "2.9.0"]]
   :profiles {:uberjar {:aot [com.jd.magpie.daemon.nimbus com.jd.magpie.daemon.supervisor]}}
   :source-paths ["src" "src/clj"]
   :java-source-paths ["src/jvm"]
