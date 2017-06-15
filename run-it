@@ -24,8 +24,12 @@ bash ${zk}/bin/zkCli.sh create /magpie magpie
 bash ${zk}/bin/zkCli.sh create /magpie/webservice webservice
 bash ${zk}/bin/zkCli.sh create /magpie/webservice/resource http://127.0.0.1:8080/magpie-jars/
 
-mkdir -p /tmp/magpie/logs
-cp -r $workspace/magpie/bin $workspace/magpie/conf $workspace/magpie/native /tmp/magpie/
+mkdir -p /tmp/magpie/{logs,lib}
+cp -r $workspace/magpie/bin $workspace/magpie/conf /tmp/magpie/
+cp -r $workspace/magpie/native /tmp/magpie/lib/
 
 cp $workspace/magpie/target/magpie-2.0-SNAPSHOT-standalone.jar /tmp/magpie/
 mv /tmp/magpie/conf/magpie.yaml.example /tmp/magpie/conf/magpie.yaml
+
+bash /tmp/magpie/bin/magpie restart nimbus
+bash /tmp/magpie/bin/magpie restart supervisor
