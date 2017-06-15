@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -e
+bin=`dirname $0`
+workspace=`cd "$bin"; pwd`
+echo $workspace
+cd $workspace/magpie
+
+lein uberjar
+
+cd /tmp/
+zk=zookeeper-3.4.10
+zk_url=http://apache.communilink.net/zookeeper/${zk}/${zk}.tar.gz
+if [ ! -f "${zk}.tar.gz" ]; then
+    echo "download "
+    wget $zk_url -O ${zk}.tar.gz
+fi
+rm -rf ${zk}
+rm -rf magpie
+
+tar zxvf ${zk}.tar.gz
+cp ${zk}/conf/zoo_sample.cfg ${zk}/conf/zoo.cfg
+bash ${zk}/bin/zkServer.sh restart
+bash ${zk}/bin/zkCli.sh create /magpie magpie
+bash ${zk}/bin/zkCli.sh create /magpie/webservice webservice
+bash ${zk}/bin/zkCli.sh create /magpie/webservice/resource http://127.0.0.1:8080/magpie-jars/
+
+mkdir -p /tmp/magpie/logs
+cp -r $workspace/magpie/bin $workspace/magpie/conf $workspace/magpie/native /tmp/magpie/
+
+cp $workspace/magpie/target/magpie-2.0-SNAPSHOT-standalone.jar /tmp/magpie/
+mv /tmp/magpie/conf/magpie.yaml.example /tmp/magpie/conf/magpie.yaml
