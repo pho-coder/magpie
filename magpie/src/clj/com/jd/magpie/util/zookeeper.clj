@@ -73,9 +73,10 @@
 
 (defn create-node
   ([^CuratorFramework zk ^String path ^bytes data mode]
-     (try
-       (.. zk (create) (withMode (zk-create-modes mode)) (withACL ZooDefs$Ids/OPEN_ACL_UNSAFE) (forPath (utils/normalize-path path) data))
-       (catch Exception e (throw (utils/wrap-in-runtime e)))))
+   (try
+     (.. zk (create) (withMode (zk-create-modes mode)) (withACL ZooDefs$Ids/OPEN_ACL_UNSAFE) (forPath (utils/normalize-path path) data))
+     (catch Exception e
+       (throw (utils/wrap-in-runtime e)))))
   ([^CuratorFramework zk ^String path ^bytes data]
      (create-node zk path data :persistent)))
 

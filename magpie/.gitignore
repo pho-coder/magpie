@@ -9,3 +9,4 @@ logs/
 .lein-repl-history
 .lein-failures
 build-jar
+bin/java

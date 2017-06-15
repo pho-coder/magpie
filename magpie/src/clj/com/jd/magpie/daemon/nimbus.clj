@@ -450,4 +450,5 @@
   (try
     (launch-server! (config/read-magpie-config))
     (catch Exception e
+      (log/error e)
       (System/exit -1))))

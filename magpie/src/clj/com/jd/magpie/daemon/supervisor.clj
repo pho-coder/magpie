@@ -356,4 +356,5 @@
     (loop [flag nil]
       (recur (Thread/sleep 100000)))
     (catch Exception e
+      (log/error e)
       (System/exit -1))))

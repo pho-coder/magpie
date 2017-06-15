@@ -1,8 +1,6 @@
 nimbus.thrift.port: 6666
 magpie.zookeeper.servers:
- - magpie1
- - magpie2
- - magpie3
+ - 127.0.0.1
 magpie.zookeeper.port: 2181
 magpie.zookeeper.root: /magpie
 magpie.zookeeper.connection.timeout.millis: 15000
