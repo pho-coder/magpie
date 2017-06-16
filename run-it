@@ -5,18 +5,32 @@ workspace=`cd "$bin"; pwd`
 echo $workspace
 cd $workspace/magpie
 
+for pid in `jps |grep -E 'QuorumPeerMain|Bootstrap|nimbus|supervisor'|awk '{print $1}'`
+do
+  kill $pid
+done
+
 lein uberjar
 
 cd /tmp/
+tomcat=apache-tomcat-9.0.0.M21
+tomcat_url=http://apache.communilink.net/tomcat/tomcat-9/v9.0.0.M21/bin/${tomcat}.tar.gz
+if [ ! -f "${tomcat}.tar.gz" ]; then
+    echo "download "${tomcat}
+    wget $tomcat_url -O ${tomcat}.tar.gz
+fi
+rm -rf ${tomcat}
+tar zxvf ${tomcat}.tar.gz
+mkdir ${tomcat}/webapps/magpie-jars
+bash ${tomcat}/bin/startup.sh
+
 zk=zookeeper-3.4.10
 zk_url=http://apache.communilink.net/zookeeper/${zk}/${zk}.tar.gz
 if [ ! -f "${zk}.tar.gz" ]; then
-    echo "download "
+    echo "download "${zk}
     wget $zk_url -O ${zk}.tar.gz
 fi
 rm -rf ${zk}
-rm -rf magpie
-
 tar zxvf ${zk}.tar.gz
 cp ${zk}/conf/zoo_sample.cfg ${zk}/conf/zoo.cfg
 bash ${zk}/bin/zkServer.sh restart
@@ -24,6 +38,7 @@ bash ${zk}/bin/zkCli.sh create /magpie magpie
 bash ${zk}/bin/zkCli.sh create /magpie/webservice webservice
 bash ${zk}/bin/zkCli.sh create /magpie/webservice/resource http://127.0.0.1:8080/magpie-jars/
 
+rm -rf magpie
 mkdir -p /tmp/magpie/{logs,lib}
 cp -r $workspace/magpie/bin $workspace/magpie/conf /tmp/magpie/
 cp -r $workspace/magpie/native /tmp/magpie/lib/
@@ -31,5 +46,5 @@ cp -r $workspace/magpie/native /tmp/magpie/lib/
 cp $workspace/magpie/target/magpie-2.0-SNAPSHOT-standalone.jar /tmp/magpie/
 mv /tmp/magpie/conf/magpie.yaml.example /tmp/magpie/conf/magpie.yaml
 
-bash /tmp/magpie/bin/magpie restart nimbus
-bash /tmp/magpie/bin/magpie restart supervisor
+bash /tmp/magpie/bin/magpie start nimbus
+bash /tmp/magpie/bin/magpie start supervisor
