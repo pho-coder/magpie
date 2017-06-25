@@ -1,6 +1,6 @@
-(ns task-example-clj.core-test
+(ns com.jd.bdp.example-task-clj.core-test
   (:require [clojure.test :refer :all]
-            [task-example-clj.core :refer :all]))
+            [com.jd.bdp.example-task-clj.core :refer :all]))
 
 (deftest a-test
   (testing "FIXME, I fail."

@@ -2,16 +2,17 @@
 set -e
 bin=`dirname $0`
 workspace=`cd "$bin"; pwd`
+home=/tmp/
 echo $workspace
 
 echo "kill processes"
-for pid in `jps |grep -E 'QuorumPeerMain|Bootstrap|nimbus|supervisor'|awk '{print $1}'`
+for pid in `jps |grep -E 'QuorumPeerMain|Bootstrap|nimbus|supervisor|core'|awk '{print $1}'`
 do
   kill $pid
 done
 
 echo "start tomcat"
-cd /tmp/
+cd ${home}
 tomcat=apache-tomcat-9.0.0.M21
 tomcat_url=http://apache.communilink.net/tomcat/tomcat-9/v9.0.0.M21/bin/${tomcat}.tar.gz
 if [ ! -f "${tomcat}.tar.gz" ]; then
@@ -24,13 +25,14 @@ mkdir ${tomcat}/webapps/magpie-jars
 bash ${tomcat}/bin/startup.sh
 
 echo "start zookeeper"
-cd /tmp/
+cd ${home}
 zk=zookeeper-3.4.10
 zk_url=http://apache.communilink.net/zookeeper/${zk}/${zk}.tar.gz
 if [ ! -f "${zk}.tar.gz" ]; then
     echo "download "${zk}
     wget $zk_url -O ${zk}.tar.gz
 fi
+rm -rf zookeeper
 rm -rf ${zk}
 tar zxvf ${zk}.tar.gz
 cp ${zk}/conf/zoo_sample.cfg ${zk}/conf/zoo.cfg
@@ -40,23 +42,33 @@ bash ${zk}/bin/zkCli.sh create /magpie/webservice webservice
 bash ${zk}/bin/zkCli.sh create /magpie/webservice/resource http://127.0.0.1:8080/magpie-jars/
 
 echo "clean magpie dir"
-cd /tmp/
+cd ${home}
 rm -rf magpie
-mkdir -p /tmp/magpie/{logs,lib}
-cp -r $workspace/magpie/bin $workspace/magpie/conf /tmp/magpie/
-cp -r $workspace/magpie/native /tmp/magpie/lib/
+rm -rf .magpie
+mkdir -p ${home}/magpie/{logs,lib}
+cp -r $workspace/magpie/bin $workspace/magpie/conf ${home}/magpie/
+cp -r $workspace/magpie/native ${home}/magpie/lib/
 
 echo "jar magpie"
 cd $workspace/magpie
 lein uberjar
-cp $workspace/magpie/target/magpie-*-SNAPSHOT-standalone.jar /tmp/magpie/
-mv /tmp/magpie/conf/magpie.yaml.example /tmp/magpie/conf/magpie.yaml
+cp $workspace/magpie/target/magpie-*-SNAPSHOT-standalone.jar ${home}/magpie/
+mv ${home}/magpie/conf/magpie.yaml.example ${home}/magpie/conf/magpie.yaml
 
 echo "start magpie"
-bash /tmp/magpie/bin/magpie start nimbus
-bash /tmp/magpie/bin/magpie start supervisor
+bash ${home}/magpie/bin/magpie start nimbus
+bash ${home}/magpie/bin/magpie start supervisor
 
 echo "jar magpie-client"
 cd $workspace/magpie-client/magpie-client-java/
 mvn clean compile package
-cp $workspace/magpie-client/magpie-client-java/target/magpie-client-*-SNAPSHOT-standalone.jar /tmp/magpie/
+cp $workspace/magpie-client/magpie-client-java/target/magpie-client-*-SNAPSHOT-standalone.jar ${home}/magpie/
+
+echo "jar example task"
+cd $workspace/magpie-framework/example-task-clj/
+lein uberjar
+cp $workspace/magpie-framework/example-task-clj/target/uberjar/example-task-clj-0.1.0-SNAPSHOT-standalone.jar ${home}/${tomcat}/webapps/magpie-jars/
+
+echo "start example task"
+bash ${home}/magpie/bin/magpie-client submit -d -class com.jd.bdp.example_task_clj.core -id example-task -jar example-task-clj-0.1.0-SNAPSHOT-standalone.jar
+tail -f ${home}/.magpie/logs/worker-example-task.log
