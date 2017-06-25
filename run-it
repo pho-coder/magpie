@@ -55,10 +55,6 @@ lein uberjar
 cp $workspace/magpie/target/magpie-*-SNAPSHOT-standalone.jar ${home}/magpie/
 mv ${home}/magpie/conf/magpie.yaml.example ${home}/magpie/conf/magpie.yaml
 
-echo "start magpie"
-bash ${home}/magpie/bin/magpie start nimbus
-bash ${home}/magpie/bin/magpie start supervisor
-
 echo "jar magpie-client"
 cd $workspace/magpie-client/magpie-client-java/
 mvn clean compile package
@@ -69,10 +65,44 @@ cd $workspace/magpie-framework/example-task-clj/
 lein uberjar
 cp $workspace/magpie-framework/example-task-clj/target/uberjar/example-task-clj-0.1.0-SNAPSHOT-standalone.jar ${home}/${tomcat}/webapps/magpie-jars/
 
+echo "start magpie"
+bash ${home}/magpie/bin/magpie start nimbus
+bash ${home}/magpie/bin/magpie start supervisor
+
+echo "waiting supervisor to init net resource"
+sleep 20
+
+echo "check processes"
+if [[ `jps |grep 'QuorumPeerMain'` =~ QuorumPeerMain$ ]]; then
+	echo "zookeeper started"
+else
+	echo "zookeeper not started, exit"
+    exit 1
+fi
+if [[ `jps |grep 'Bootstrap'` =~ Bootstrap$ ]]; then
+	echo "tomcat started"
+else
+	echo "tomcat not started, exit"
+    exit 2
+fi
+if [[ `jps |grep 'nimbus'` =~ nimbus$ ]]; then
+	echo "nimbus started"
+else
+	echo "nimbus not started, exit"
+    exit 3
+fi
+if [[ `jps |grep 'supervisor'` =~ supervisor$ ]]; then
+	echo "supervisor started"
+else
+	echo "supervisor not started, exit"
+    exit 4
+fi
+
+
 echo "start example task"
 bash ${home}/magpie/bin/magpie-client submit -d -class com.jd.bdp.example_task_clj.core -id example-task -jar example-task-clj-0.1.0-SNAPSHOT-standalone.jar
 while [[ ! -f ${home}/.magpie/logs/worker-example-task.log ]]; do
-	echo "waiting start woerker"
+	echo "waiting to start woerker"
 	sleep 1
 done
 tail -f ${home}/.magpie/logs/worker-example-task.log

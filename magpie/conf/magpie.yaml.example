@@ -13,11 +13,11 @@ magpie.floor.score: 20
 magpie.jars.dir: /tmp/.magpie/jars
 magpie.pids.dir: /tmp/.magpie/pids
 magpie.logs.dir: /tmp/.magpie/logs
-magpie.heartbeat.interval.millis: 1000
+magpie.heartbeat.interval.millis: 10000
 magpie.schedule.interval.millis: 1000
 magpie.schedule.timeout.millis: 60000
 magpie.schedule.launchworker.timeout.millis: 10000
-magpie.net-bandwidth-calculate.interval.millis: 30000
+magpie.net-bandwidth-calculate.interval.millis: 15000
 
 magpie.worker.childopts: "-Xmx768m"
 java.library.path: ""
