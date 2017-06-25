@@ -3,15 +3,14 @@ set -e
 bin=`dirname $0`
 workspace=`cd "$bin"; pwd`
 echo $workspace
-cd $workspace/magpie
 
+echo "kill processes"
 for pid in `jps |grep -E 'QuorumPeerMain|Bootstrap|nimbus|supervisor'|awk '{print $1}'`
 do
   kill $pid
 done
 
-lein uberjar
-
+echo "start tomcat"
 cd /tmp/
 tomcat=apache-tomcat-9.0.0.M21
 tomcat_url=http://apache.communilink.net/tomcat/tomcat-9/v9.0.0.M21/bin/${tomcat}.tar.gz
@@ -24,6 +23,8 @@ tar zxvf ${tomcat}.tar.gz
 mkdir ${tomcat}/webapps/magpie-jars
 bash ${tomcat}/bin/startup.sh
 
+echo "start zookeeper"
+cd /tmp/
 zk=zookeeper-3.4.10
 zk_url=http://apache.communilink.net/zookeeper/${zk}/${zk}.tar.gz
 if [ ! -f "${zk}.tar.gz" ]; then
@@ -38,13 +39,24 @@ bash ${zk}/bin/zkCli.sh create /magpie magpie
 bash ${zk}/bin/zkCli.sh create /magpie/webservice webservice
 bash ${zk}/bin/zkCli.sh create /magpie/webservice/resource http://127.0.0.1:8080/magpie-jars/
 
+echo "clean magpie dir"
+cd /tmp/
 rm -rf magpie
 mkdir -p /tmp/magpie/{logs,lib}
 cp -r $workspace/magpie/bin $workspace/magpie/conf /tmp/magpie/
 cp -r $workspace/magpie/native /tmp/magpie/lib/
 
-cp $workspace/magpie/target/magpie-2.0-SNAPSHOT-standalone.jar /tmp/magpie/
+echo "jar magpie"
+cd $workspace/magpie
+lein uberjar
+cp $workspace/magpie/target/magpie-*-SNAPSHOT-standalone.jar /tmp/magpie/
 mv /tmp/magpie/conf/magpie.yaml.example /tmp/magpie/conf/magpie.yaml
 
+echo "start magpie"
 bash /tmp/magpie/bin/magpie start nimbus
 bash /tmp/magpie/bin/magpie start supervisor
+
+echo "jar magpie-client"
+cd $workspace/magpie-client/magpie-client-java/
+mvn clean compile package
+cp $workspace/magpie-client/magpie-client-java/target/magpie-client-*-SNAPSHOT-standalone.jar /tmp/magpie/
