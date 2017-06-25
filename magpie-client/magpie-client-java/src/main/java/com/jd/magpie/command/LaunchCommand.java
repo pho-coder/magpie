@@ -106,10 +106,10 @@ public class LaunchCommand implements MainExecutor.ClientCommand {
 
         if (cl.hasOption("d")) {
             LOG.info("debug mode");
+            int times = 30;
             while (true) {
-                int times = 20;
                 if (times == 0) {
-                    LOG.info("time elapses 40s!, the task " + id + " hasn't submitted!");
+                    LOG.info("time elapses 60s!, the task " + id + " hasn't submitted!");
                     break;
                 }
                 byte[] assignmentBytes = zkUtils.getData(Utils.getAssignmentsPath() + "/" + id, false);
@@ -126,6 +126,8 @@ public class LaunchCommand implements MainExecutor.ClientCommand {
                     } else {
                         LOG.info("the task " + id + " hasn't been submitted!");
                         times --;
+                        Thread.sleep(2000);
+                        continue;
                     }
                 }
             }

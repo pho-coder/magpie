@@ -81,10 +81,10 @@ public class KillCommand implements MainExecutor.ClientCommand {
         LOG.info(result);
         if (cl.hasOption("d")) {
             LOG.info("debug mode");
+            int times = 30;
             while (true) {
-                int times = 20;
                 if (times == 0) {
-                    LOG.info("time elapses 40s!, the task " + id + " hasn't been killed!");
+                    LOG.info("time elapses 60s!, the task " + id + " hasn't been killed!");
                     break;
                 }
                 if (zkUtils.checkExists(Utils.getAssignmentsPath() + "/" + id)) {
