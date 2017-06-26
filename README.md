@@ -27,3 +27,9 @@ run-it脚本可以在单机从源代码编译到执行，步骤如下：
 9. 等待20秒，由于supervisor检测自身网络信息时需要一定时间间隔（默认15秒），硬件信息未检测时，nimbus无法选取可用supervisor节点
 10. 检测tomcat, zookeeper, nimbus, supervisor进程是否启动
 11. magpie-client提交example task，等待启动后tail task日志
+
+# v2.0升级内容
+
+1. jdk7升级为jdk8
+2. 升级相关依赖包，主要升级了org.apache.thrift/libthrift "0.10.0"
+3. 升级supervisor选取策略从只基于资源选最优，到考虑单节点当前运行任务数（待开发）
