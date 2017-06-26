@@ -69,8 +69,8 @@ echo "start magpie"
 bash ${home}/magpie/bin/magpie start nimbus
 bash ${home}/magpie/bin/magpie start supervisor
 
-echo "waiting supervisor to init net resource"
-sleep 20
+echo "waiting 30s, for supervisor initing net resource"
+sleep 30
 
 echo "check processes"
 if [[ `jps |grep 'QuorumPeerMain'` =~ QuorumPeerMain$ ]]; then
