@@ -98,7 +98,6 @@ else
     exit 4
 fi
 
-
 echo "start example task"
 bash ${home}/magpie/bin/magpie-client submit -d -class com.jd.bdp.example_task_clj.core -id example-task -jar example-task-clj-0.1.0-SNAPSHOT-standalone.jar
 while [[ ! -f ${home}/.magpie/logs/worker-example-task.log ]]; do
