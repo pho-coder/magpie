@@ -14,7 +14,7 @@
 #  limitations under the License. See accompanying LICENSE file.
 #
 rm -rf gen-javabean 
-generated_path=com/jd/magpie/generated
+generated_path=com/jd/bdp/magpie/generated
 mkdir -p java/$generated_path
 rm -rf java/$generated_path
 thrift --gen java:beans,nocamel magpie_nimbus.thrift

@@ -14,7 +14,7 @@
 #  limitations under the License. See accompanying LICENSE file.
 #
 
-namespace java com.jd.magpie.generated
+namespace java com.jd.bdp.magpie.generated
 
 service Nimbus {
 
