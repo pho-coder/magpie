@@ -67,6 +67,7 @@
         zk-root (conf MAGPIE-ZOOKEEPER-ROOT)
         zk-servers (clojure.string/join "," (map #(str % ":" zk-port) servers))
         cgroup-enable (conf MAGPIE-CGROUP-ENABLE false)
+        cgroup-prefix-dir (conf MAGPIE-CGROUP-PREFIX-DIR "/sys/fs/cgroup/")
         cgname (conf MAGPIE-CGROUP-NAME "magpie")
         cgcpu-cores (conf MAGPIE-CGROUP-CPU-CORES 1)
         cgmemory (conf MAGPIE-CGROUP-MEMORY 1024)
@@ -95,7 +96,7 @@
                                             (str "-Djob.id=" id)
                                             "-cp" classpath klass])
           process (if cgroup-enable
-                    (cgutils/cgone cgname cgchild-name cgcpu-cores cgmemory cgmemsw command)
+                    (cgutils/cgone cgroup-prefix-dir cgname cgchild-name cgcpu-cores cgmemory cgmemsw command)
                     (utils/launch-process command))
           time (utils/current-time-millis)]
       (loop [pid (get-pid node)]
@@ -106,7 +107,7 @@
                   (.destroy process))
                 (utils/rmr (get-pid-dir node))
                 (when cgroup-enable
-                  (cgutils/cgdelete cgname cgchild-name)))
+                  (cgutils/cgdelete cgroup-prefix-dir cgname cgchild-name)))
             (recur (get-pid node)))
           (log/info "launch job successfully...(topology id='" id "', jar='" jar "', class='" klass "')")))
       (log/info "command: " command))))
@@ -117,6 +118,7 @@
         my-job-infos (mutils/time-timer get-my-jobs-timer (get-my-jobs zk-handler supervisor-id))
         pids-dir (conf MAGPIE-PIDS-DIR)
         cgroup-enable (conf MAGPIE-CGROUP-ENABLE false)
+        cgroup-prefix-dir (conf MAGPIE-CGROUP-PREFIX-DIR "/sys/fs/cgroup/")
         cgname (conf MAGPIE-CGROUP-NAME "magpie")
         command-path "/commands"
         webservice-path "/webservice"
@@ -133,7 +135,7 @@
           (utils/ensure-process-killed! pid)))
       (utils/rmr (get-pid-dir job))
       (when cgroup-enable
-        (cgutils/cgdelete cgname job)))
+        (cgutils/cgdelete cgroup-prefix-dir cgname job)))
     (doseq [job-info my-job-infos]
       (let [node (job-info "id")
             cgchild-name node
@@ -152,13 +154,13 @@
             (utils/ensure-process-killed! (get-pid node))
             (utils/rmr (get-pid-dir node))
             (when cgroup-enable
-              (cgutils/cgdelete cgname cgchild-name))))))
+              (cgutils/cgdelete cgroup-prefix-dir cgname cgchild-name))))))
     (when cgroup-enable
-      (let [cgroup-jobs (cgutils/get-cgroup-jobs cgname)
+      (let [cgroup-jobs (cgutils/get-cgroup-jobs cgroup-prefix-dir cgname)
             waste-cgjobs (clojure.set/difference cgroup-jobs my-jobs)]
         (doseq [job waste-cgjobs]
           (log/warn "task:" job "stopped, but cgroup dir exists! Clearing...")
-          (cgutils/cgdelete cgname job))))))
+          (cgutils/cgdelete cgroup-prefix-dir cgname job))))))
 
 (defn get-net-bandwidth [calculate-interval max-net-bandwidth]
   (let [mill (* 1024 1024)

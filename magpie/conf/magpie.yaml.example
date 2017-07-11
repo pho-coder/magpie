@@ -26,6 +26,7 @@ magpie.supervisor.group: "default"
 magpie.supervisor.max-net-bandwidth: 100
 
 magpie.cgroup.enable: false
+magpie.cgroup.prefix.dir: /sys/fs/cgroup
 magpie.cgroup.name: "magpie"
 magpie.cgroup.cpu-cores: 1
 # unit: MB

@@ -31,6 +31,7 @@
 (def MAGPIE-SUPERVISOR-MAX-NET-BANDWIDTH "magpie.supervisor.max-net-bandwidth")
 
 (def MAGPIE-CGROUP-ENABLE "magpie.cgroup.enable")
+(def MAGPIE-CGROUP-PREFIX-DIR "magpie.cgroup.prefix.dir")
 (def MAGPIE-CGROUP-NAME "magpie.cgroup.name")
 (def MAGPIE-CGROUP-CPU-CORES "magpie.cgroup.cpu-cores")
 (def MAGPIE-CGROUP-MEMORY "magpie.cgroup.memory")
