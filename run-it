@@ -45,8 +45,9 @@ echo "clean magpie dir"
 cd ${home}
 rm -rf magpie
 rm -rf .magpie
-mkdir -p ${home}/magpie/{logs,lib}
-cp -r $workspace/magpie/bin $workspace/magpie/conf ${home}/magpie/
+mkdir -p ${home}/magpie/{logs,lib,bin}
+cp $workspace/magpie/bin/magpie* ${home}/magpie/bin/
+cp -r $workspace/magpie/conf ${home}/magpie/
 cp -r $workspace/magpie/native ${home}/magpie/lib/
 
 echo "jar magpie"

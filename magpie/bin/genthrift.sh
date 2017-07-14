@@ -17,6 +17,6 @@ rm -rf gen-javabean
 generated_path=com/jd/bdp/magpie/generated
 mkdir -p java/$generated_path
 rm -rf java/$generated_path
-thrift --gen java:beans,nocamel magpie_nimbus.thrift
+thrift --gen java:beans,nocamel nimbus.thrift
 mv gen-javabean/$generated_path/ java/$generated_path
 rm -rf gen-javabean
