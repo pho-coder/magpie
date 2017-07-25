@@ -4,11 +4,14 @@
             [clojure.tools.logging :as log]))
 
 (defn run-fn [job-id]
-  (log/info (str "HI: " job-id))
+  (log/info "HI:" job-id)
   (Thread/sleep 3000))
 
 (defn prepare-fn [job-id]
-  (log/info (str "start " job-id)))
+  (log/info "start" job-id))
+
+(defn reload-fn [job-id]
+  (log/info "reload" job-id))
 
 (defn -main
   "I don't do a whole lot ... yet."
