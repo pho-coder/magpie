@@ -6,7 +6,8 @@
             [com.jd.bdp.magpie.util.utils :as utils]
             [com.jd.bdp.magpie.util.mutils :as mutils]
             [clojure.tools.logging :as log]
-            [metrics.reporters.jmx :as jmx])
+            [metrics.reporters.jmx :as jmx]
+            [mount.core :as mount])
   (:use [com.jd.bdp.magpie.bootstrap])
   (:import [com.jd.bdp.magpie.generated Nimbus Nimbus$Iface Nimbus$Processor]
            [java.util Arrays]
@@ -20,6 +21,8 @@
                         :no-supervisor-num (atom 0)
                         :lost-supervisor-num (atom 0)
                         :error-supervisor-num (atom 0)})
+
+(mount/defstate supervisors-health nil)
 
 (defn get-all-supervisors [zk-handler supervisor-path group]
   (let [supervisors (zookeeper/get-children zk-handler supervisor-path false)
@@ -357,6 +360,19 @@
         (log/warn "lost supervisor num:" @lost-supervisor-num)
         (log/error "error supervisor num:" @error-supervisor-num)))))
 
+(defn supervisors-health-check
+  "check supervisors pressure"
+  [zk-handler]
+  (let [supervisor-path "/supervisors"
+        yourtasks-path "/yourtasks"
+        supervisors (set (zookeeper/get-children zk-handler supervisor-path false))]
+    (doseq [supervisor supervisors]
+      (if-not (zookeeper/exists-node? zk-handler
+                                      (str yourtasks-path "/" supervisor)
+                                      false)
+        (log/error "supervisor:" supervisor "hasn't yourtasks node!")
+        (let [supervisor-info-bytes])))))
+
 (defn launch-server! [conf]
   (let [zk-handler (zookeeper/mk-client conf (conf MAGPIE-ZOOKEEPER-SERVERS) (conf MAGPIE-ZOOKEEPER-PORT) :root (conf MAGPIE-ZOOKEEPER-ROOT))
         nimbus-path "/nimbus"
@@ -434,7 +450,7 @@
       (catch Exception e
         (log/error (.toString e))))
     (log/info "finish init health check!")
-    (timer/schedule-recurring workerbeat-timer 5 schedule-check-interval                              
+    (timer/schedule-recurring workerbeat-timer 5 schedule-check-interval
                               (fn []
                                 (try
                                   (mutils/time-timer process-all-tasks-timer (process-all-tasks conf zk-handler))

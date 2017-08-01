@@ -17,7 +17,8 @@
                  [sigmund/sigmund "0.1.1"]
                  [org.codehaus.jackson/jackson-mapper-asl "1.9.13"]
                  [org.json/json "20170516"]
-                 [metrics-clojure "2.9.0"]]
+                 [metrics-clojure "2.9.0"]
+                 [mount "0.1.11"]]
   :profiles {:uberjar {:aot [com.jd.bdp.magpie.daemon.nimbus com.jd.bdp.magpie.daemon.supervisor]}}
   :source-paths ["src" "src/clj"]
   :java-source-paths ["src/jvm"]
