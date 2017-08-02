@@ -7,7 +7,8 @@
             [com.jd.bdp.magpie.util.mutils :as mutils]
             [clojure.tools.logging :as log]
             [metrics.reporters.jmx :as jmx]
-            [mount.core :as mount])
+            [mount.core :as mount]
+            [clojure.data.json :as json])
   (:use [com.jd.bdp.magpie.bootstrap])
   (:import [com.jd.bdp.magpie.generated Nimbus Nimbus$Iface Nimbus$Processor]
            [java.util Arrays]
@@ -22,7 +23,7 @@
                         :lost-supervisor-num (atom 0)
                         :error-supervisor-num (atom 0)})
 
-(mount/defstate supervisors-health nil)
+(mount/defstate supervisors-health-info :start (hash-map))
 
 (defn get-all-supervisors [zk-handler supervisor-path group]
   (let [supervisors (zookeeper/get-children zk-handler supervisor-path false)
@@ -363,15 +364,23 @@
 (defn supervisors-health-check
   "check supervisors pressure"
   [zk-handler]
-  (let [supervisor-path "/supervisors"
+  (let [supervisors-path "/supervisors"
         yourtasks-path "/yourtasks"
-        supervisors (set (zookeeper/get-children zk-handler supervisor-path false))]
+        supervisors (set (zookeeper/get-children zk-handler supervisors-path false))]
     (doseq [supervisor supervisors]
       (if-not (zookeeper/exists-node? zk-handler
                                       (str yourtasks-path "/" supervisor)
                                       false)
         (log/error "supervisor:" supervisor "hasn't yourtasks node!")
-        (let [supervisor-info-bytes])))))
+        (if-let [supervisor-info-bytes (zookeeper/get-data zk-handler (str supervisors-path "/" supervisor) false)]
+          (let [supervisor-info (json/read-str (utils/bytes->string supervisor-info-bytes)
+                                               :key-fn keyword)
+                yourtasks (vec (zookeeper/get-children zk-handler (str yourtasks-path "/" supervisor) false))
+                supervisor-health-info (assoc supervisor-info :tasks yourtasks)]
+            (mount/start-with {#'supervisors-health-info (assoc supervisors-health-info
+                                                                (keyword supervisor)
+                                                                supervisor-health-info)}))
+          (log/warn "NO" supervisor "in" supervisors-path))))))
 
 (defn launch-server! [conf]
   (let [zk-handler (zookeeper/mk-client conf (conf MAGPIE-ZOOKEEPER-SERVERS) (conf MAGPIE-ZOOKEEPER-PORT) :root (conf MAGPIE-ZOOKEEPER-ROOT))
@@ -383,14 +392,17 @@
         command-path "/commands"
         yourtasks-path "/yourtasks"
         heartbeat-interval (/ (conf MAGPIE-HEARTBEAT-INTERVAL 2000) 1000)
-        schedule-check-interval (/ (conf MAGPIE-SCHEDULE-INTERVAL 5000) 1000)
+        healthcheck-interval (/ (conf MAGPIE-HEALTHCHECK-INTERVAL 5000) 1000)
+        schedule-interval (/ (conf MAGPIE-SCHEDULE-INTERVAL 5000) 1000)
         _ (config/init-zookeeper zk-handler)
         nimbus-info {"ip" (utils/ip) "hostname" (utils/hostname) "username" (utils/username) "port" (int (conf NIMBUS-THRIFT-PORT))}
         heartbeat-timer (timer/mk-timer)
+        healthcheck-timer (timer/mk-timer)
         workerbeat-timer (timer/mk-timer)
         reg (mutils/get-registry)
         heartbeat-counter (mutils/get-counter reg MAGPIE-NIMBUS-HEARTBEAT-COUNTER-METRICS-NAME)
         tasks-health-check-timer (mutils/get-timer reg MAGPIE-NIMBUS-TASKS-HEALTH-CHECK-TIMER-METRICS-NAME)
+        supervisors-health-check-timer (mutils/get-timer reg MAGPIE-NIMBUS-SUPERVISORS-HEALTH-CHECK-TIMER-METRICS-NAME)
         submit-task-timer (mutils/get-timer reg MAGPIE-NIMBUS-SUBMIT-TASK-TIMER-METRICS-NAME)
         operate-task-timer (mutils/get-timer reg MAGPIE-NIMBUS-OPERATE-TASK-TIMER-METRICS-NAME)
         process-all-tasks-timer (mutils/get-timer reg MAGPIE-NIMBUS-PROCESS-ALL-TASKS-TIMER-METRICS-NAME)
@@ -444,26 +456,32 @@
                                   (catch Exception e
                                     (log/error e "error accurs in nimbus heartbeat timer")
                                     (System/exit -1)))))
-    (log/info "init health check!")
-    (try
-      (mutils/time-timer tasks-health-check-timer (tasks-health-check zk-handler))
-      (catch Exception e
-        (log/error (.toString e))))
-    (log/info "finish init health check!")
-    (timer/schedule-recurring workerbeat-timer 5 schedule-check-interval
+    (timer/schedule-recurring healthcheck-timer 0 healthcheck-interval
+                              (fn []
+                                (try
+                                  (mutils/time-timer tasks-health-check-timer (tasks-health-check zk-handler))
+                                  (mutils/time-timer supervisors-health-check-timer (supervisors-health-check zk-handler))
+                                  (log/info supervisors-health-info)
+                                  (catch Exception e
+                                    (log/error e "error accurs in nimbus health checking.")
+                                    (System/exit -1)))))
+    (timer/schedule-recurring workerbeat-timer 5 schedule-interval
                               (fn []
                                 (try
                                   (mutils/time-timer process-all-tasks-timer (process-all-tasks conf zk-handler))
                                   (mutils/time-timer process-dead-tasks-timer (process-dead-tasks conf zk-handler))
-                                  (mutils/time-timer tasks-health-check-timer (tasks-health-check zk-handler))
                                   (catch Exception e
-                                    (log/error e "error accurs in nimbus scheduling and checking..")
+                                    (log/error e "error accurs in nimbus scheduling.")
                                     (System/exit -1)))))
     (jmx/start jmx-report)
     (.serve server)))
 
 (defn -main [ & args ]
   (try
+    (doseq [component (-> args
+                          mount/start-with-args
+                          :started)]
+      (log/info component "started"))
     (launch-server! (config/read-magpie-config))
     (catch Exception e
       (log/error e)

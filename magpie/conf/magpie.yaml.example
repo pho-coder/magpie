@@ -14,6 +14,7 @@ magpie.jars.dir: /tmp/.magpie/jars
 magpie.pids.dir: /tmp/.magpie/pids
 magpie.logs.dir: /tmp/.magpie/logs
 magpie.heartbeat.interval.millis: 10000
+magpie.healthcheck.interval.millis: 5000
 magpie.schedule.interval.millis: 1000
 magpie.schedule.timeout.millis: 60000
 magpie.schedule.launchworker.timeout.millis: 10000

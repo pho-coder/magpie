@@ -1,4 +1,4 @@
-(defproject magpie "2.2-SNAPSHOT"
+(defproject magpie "2.2.20170802-SNAPSHOT"
   :description "FIXME: write description"
   :url "http://example.com/FIXME"
   :license {:name "Eclipse Public License"
@@ -18,7 +18,8 @@
                  [org.codehaus.jackson/jackson-mapper-asl "1.9.13"]
                  [org.json/json "20170516"]
                  [metrics-clojure "2.9.0"]
-                 [mount "0.1.11"]]
+                 [mount "0.1.11"]
+                 [org.clojure/data.json "0.2.6"]]
   :profiles {:uberjar {:aot [com.jd.bdp.magpie.daemon.nimbus com.jd.bdp.magpie.daemon.supervisor]}}
   :source-paths ["src" "src/clj"]
   :java-source-paths ["src/jvm"]

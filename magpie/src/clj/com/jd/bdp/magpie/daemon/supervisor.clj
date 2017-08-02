@@ -252,7 +252,7 @@
   (check-env conf)
   (let [zk-handler (zookeeper/mk-client conf (conf MAGPIE-ZOOKEEPER-SERVERS) (conf MAGPIE-ZOOKEEPER-PORT) :root (conf MAGPIE-ZOOKEEPER-ROOT))
         heartbeat-interval (/ (conf MAGPIE-HEARTBEAT-INTERVAL 2000) 1000)
-        schedule-check-interval (/ (conf MAGPIE-SCHEDULE-INTERVAL 5000) 1000)
+        schedule-interval (/ (conf MAGPIE-SCHEDULE-INTERVAL 5000) 1000)
         net-bandwidth-calculate-interval (conf MAGPIE-NET-BANDWIDTH-CALCULATE-INTERVAL 30000)
         supervisor-path "/supervisors"
         yourtasks-path "/yourtasks"
@@ -343,7 +343,7 @@
                                   (catch Exception e
                                     (log/error e "error accurs in supervisor heartbeat timer..")
                                     (System/exit -1)))))
-    (timer/schedule-recurring schedule-timer 10 schedule-check-interval
+    (timer/schedule-recurring schedule-timer 10 schedule-interval
                               (fn []
                                 (try
                                   (mutils/time-timer process-job-timer (process-job conf zk-handler supervisor-id reg))
