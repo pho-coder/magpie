@@ -85,6 +85,9 @@
               (if (zookeeper/exists-node? zk-handler yourtask-path false)
                 (zookeeper/set-data zk-handler yourtask-path (utils/object->bytes {"assign-time" (utils/current-time-millis)}))
                 (zookeeper/create-node zk-handler yourtask-path (utils/object->bytes {"assign-time" (utils/current-time-millis)}))))
+            (mount/start-with {#'supervisors-health-info (update-in supervisors-health-info
+                                                                    [(keyword best-supervisor) :tasks]
+                                                                    conj node)})
             (log/info "submit task successfully, (topology id='" id "', supervisor id='" best-supervisor "')"))
         (do (zookeeper/set-data zk-handler (str command-path "/" node) (utils/object->bytes {"command" "wait" "time" (utils/current-time-millis)}))
             (log/warn "resource not enough, this task will be waiting. (topology id='" id "')"))))))
@@ -100,13 +103,16 @@
                                         false)
             supervisor (get (utils/bytes->map zk-data)
                             "supervisor" nil)]
-        (if-not (or (nil? supervisor) (= supervisor ""))
+        (when-not (or (nil? supervisor) (= supervisor ""))
           (zookeeper/delete-node zk-handler
                                  (str yourtasks-path
                                       "/"
                                       supervisor
                                       "/"
-                                      node))))
+                                      node))
+          (mount/start-with {#'supervisors-health-info (update-in supervisors-health-info
+                                                                  [(keyword supervisor) :tasks]
+                                                                  disj node)})))
       (catch Exception e
         (log/error (.toString e))))
     (try
@@ -271,7 +277,10 @@
                                                          supervisor
                                                          "/"
                                                          node))
-                             (zookeeper/set-data zk-handler (str assignment-path "/" node) (utils/object->bytes {"supervisor" ""})))))
+                             (zookeeper/set-data zk-handler (str assignment-path "/" node) (utils/object->bytes {"supervisor" ""}))
+                             (mount/start-with {#'supervisors-health-info (update-in supervisors-health-info
+                                                                                     [(keyword supervisor) :tasks]
+                                                                                     disj node)}))))
                      (catch Exception e
                        (log/error (.toString e)))))
           "reload" (let [status (utils/bytes->string (zookeeper/get-data zk-handler (str status-path "/" node) false))]
@@ -375,7 +384,7 @@
         (if-let [supervisor-info-bytes (zookeeper/get-data zk-handler (str supervisors-path "/" supervisor) false)]
           (let [supervisor-info (json/read-str (utils/bytes->string supervisor-info-bytes)
                                                :key-fn keyword)
-                yourtasks (vec (zookeeper/get-children zk-handler (str yourtasks-path "/" supervisor) false))
+                yourtasks (set (zookeeper/get-children zk-handler (str yourtasks-path "/" supervisor) false))
                 supervisor-health-info (assoc supervisor-info :tasks yourtasks)]
             (mount/start-with {#'supervisors-health-info (assoc supervisors-health-info
                                                                 (keyword supervisor)
