@@ -23,14 +23,14 @@
                         :lost-supervisor-num (atom 0)
                         :error-supervisor-num (atom 0)})
 
-(mount/defstate supervisors-health-info :start (hash-map))
+(mount/defstate supervisors-info :start (hash-map))
 
 (defn get-all-supervisors [zk-handler supervisor-path group]
   (let [supervisors (zookeeper/get-children zk-handler supervisor-path false)
         supervisor-infos (map #(utils/bytes->map (zookeeper/get-data zk-handler (str supervisor-path "/" %) false)) supervisors)
         supervisors-of-the-group (filter #(if (nil? %) false true) (map (fn [supervisor] (if (= (get supervisor "group") group)
-                                                                                          supervisor
-                                                                                          nil)) supervisor-infos))]
+                                                                                           supervisor
+                                                                                           nil)) supervisor-infos))]
     (log/debug "supervisor info:" supervisor-infos)
     (log/debug "supervisors of the group:" supervisors-of-the-group)
     supervisors-of-the-group))
@@ -68,6 +68,50 @@
                              one
                              two))) supervisors-good) "id"))))))
 
+(defn get-best-new [group type floor-score]
+  (let [supervisor-infos (filter #(if (nil? %) false true) (map (fn [supervisor] (if (= (:group (second supervisor)) group)
+                                                                                   (second supervisor)
+                                                                                   nil)) supervisors-info))
+        total-tasks-num (reduce #(+ %1 (.size (:tasks %2))) 0 supervisor-infos)
+        avg-tasks-num (if (empty? supervisor-infos)
+                        0
+                        (/ total-tasks-num (.size supervisor-infos)))
+        top-tasks-num (if (= avg-tasks-num 0)
+                        5
+                        (* avg-tasks-num 1.5))
+        MAX-SCORE 100]
+    (if (empty? supervisor-infos)
+      (do (log/error "no supervisor in group" group "is running, this task will not be run, please check...")
+          nil)
+      (let [supervisors-good (filter (fn [supervisor] (let [memory-score (if-let [score (:memory-score supervisor)]
+                                                                           score
+                                                                           0)
+                                                            cpu-score (if-let [score (:cpu-score supervisor)]
+                                                                        score
+                                                                        0)
+                                                            net-bandwidth-score (if-let [score (:net-bandwidth-score supervisor)]
+                                                                                  score
+                                                                                  0)
+                                                            tasks-num (.size (:tasks supervisor))]
+                                                        (if (and (and (>= memory-score floor-score) (<= memory-score MAX-SCORE))
+                                                                 (and (>= cpu-score floor-score) (<= cpu-score MAX-SCORE))
+                                                                 (and (>= net-bandwidth-score floor-score) (<= net-bandwidth-score MAX-SCORE))
+                                                                 (<= tasks-num top-tasks-num))
+                                                          true
+                                                          false))) supervisor-infos)]
+        (if (empty? supervisors-good)
+          (do (log/warn "no supervisor has enough resource in group" group)
+              nil)
+          (:id (reduce (fn [one two]
+                         (let [score-type (case type
+                                            "memory" :memory-score
+                                            "cpu" :cpu-score
+                                            "network" :net-bandwidth-score
+                                            :memory-score)]
+                           (if (>= (score-type one) (score-type two))
+                             one
+                             two))) supervisors-good)))))))
+
 (defn assign [zk-handler id jar klass group type floor-score & {:keys [last-supervisor]}]
   (let [supervisor-path "/supervisors"
         assignment-path "/assignments"
@@ -78,16 +122,17 @@
         task-path (str assignment-path "/" node)]
     (if (zookeeper/exists-node? zk-handler (str workerbeats-path "/" node) false)
       (log/warn node "heartbeat exists! NOT assign it!")
-      (if-let [best-supervisor (get-best zk-handler supervisor-path group type floor-score)]
+      (if-let [best-supervisor (get-best-new group type floor-score) ;(get-best zk-handler supervisor-path group type floor-score)
+               ]
         (do (zookeeper/set-data zk-handler (str command-path "/" node) (utils/object->bytes {"command" "run" "time" (utils/current-time-millis)}))
             (zookeeper/set-data zk-handler task-path (utils/object->bytes {"start-time" (utils/current-time-millis) "jar" jar "class" klass "id" id "group" group "type" type "supervisor" best-supervisor "last-supervisor" last-supervisor}))
             (let [yourtask-path (str yourtasks-path "/" best-supervisor "/" node)]
               (if (zookeeper/exists-node? zk-handler yourtask-path false)
                 (zookeeper/set-data zk-handler yourtask-path (utils/object->bytes {"assign-time" (utils/current-time-millis)}))
                 (zookeeper/create-node zk-handler yourtask-path (utils/object->bytes {"assign-time" (utils/current-time-millis)}))))
-            (mount/start-with {#'supervisors-health-info (update-in supervisors-health-info
-                                                                    [(keyword best-supervisor) :tasks]
-                                                                    conj node)})
+            (mount/start-with {#'supervisors-info (update-in supervisors-info
+                                                             [(keyword best-supervisor) :tasks]
+                                                             conj node)})
             (log/info "submit task successfully, (topology id='" id "', supervisor id='" best-supervisor "')"))
         (do (zookeeper/set-data zk-handler (str command-path "/" node) (utils/object->bytes {"command" "wait" "time" (utils/current-time-millis)}))
             (log/warn "resource not enough, this task will be waiting. (topology id='" id "')"))))))
@@ -110,9 +155,9 @@
                                       supervisor
                                       "/"
                                       node))
-          (mount/start-with {#'supervisors-health-info (update-in supervisors-health-info
-                                                                  [(keyword supervisor) :tasks]
-                                                                  disj node)})))
+          (mount/start-with {#'supervisors-info (update-in supervisors-info
+                                                           [(keyword supervisor) :tasks]
+                                                           disj node)})))
       (catch Exception e
         (log/error (.toString e))))
     (try
@@ -278,9 +323,9 @@
                                                          "/"
                                                          node))
                              (zookeeper/set-data zk-handler (str assignment-path "/" node) (utils/object->bytes {"supervisor" ""}))
-                             (mount/start-with {#'supervisors-health-info (update-in supervisors-health-info
-                                                                                     [(keyword supervisor) :tasks]
-                                                                                     disj node)}))))
+                             (mount/start-with {#'supervisors-info (update-in supervisors-info
+                                                                              [(keyword supervisor) :tasks]
+                                                                              disj node)}))))
                      (catch Exception e
                        (log/error (.toString e)))))
           "reload" (let [status (utils/bytes->string (zookeeper/get-data zk-handler (str status-path "/" node) false))]
@@ -386,9 +431,9 @@
                                                :key-fn keyword)
                 yourtasks (set (zookeeper/get-children zk-handler (str yourtasks-path "/" supervisor) false))
                 supervisor-health-info (assoc supervisor-info :tasks yourtasks)]
-            (mount/start-with {#'supervisors-health-info (assoc supervisors-health-info
-                                                                (keyword supervisor)
-                                                                supervisor-health-info)}))
+            (mount/start-with {#'supervisors-info (assoc supervisors-info
+                                                         (keyword supervisor)
+                                                         supervisor-health-info)}))
           (log/warn "NO" supervisor "in" supervisors-path))))))
 
 (defn launch-server! [conf]
@@ -470,7 +515,7 @@
                                 (try
                                   (mutils/time-timer tasks-health-check-timer (tasks-health-check zk-handler))
                                   (mutils/time-timer supervisors-health-check-timer (supervisors-health-check zk-handler))
-                                  (log/info supervisors-health-info)
+                                  (log/debug supervisors-info)
                                   (catch Exception e
                                     (log/error e "error accurs in nimbus health checking.")
                                     (System/exit -1)))))
