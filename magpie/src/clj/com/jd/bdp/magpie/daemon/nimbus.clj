@@ -68,6 +68,26 @@
                              one
                              two))) supervisors-good) "id"))))))
 
+(defn can-got-new-task? [avg-tasks-num supervisor floor-score]
+  (let [MAX-SCORE 100
+        tasks-num (.size (:tasks supervisor))
+        top-tasks-num (if (< tasks-num 5)
+                        5
+                        (* avg-tasks-num 1.2))
+        memory-score (if-let [score (:memory-score supervisor)]
+                       score
+                       0)
+        cpu-score (if-let [score (:cpu-score supervisor)]
+                    score
+                    0)
+        net-bandwidth-score (if-let [score (:net-bandwidth-score supervisor)]
+                              score
+                              0)]
+    (and (and (>= memory-score floor-score) (<= memory-score MAX-SCORE))
+         (and (>= cpu-score floor-score) (<= cpu-score MAX-SCORE))
+         (and (>= net-bandwidth-score floor-score) (<= net-bandwidth-score MAX-SCORE))
+         (< tasks-num top-tasks-num))))
+
 (defn get-best-new [group type floor-score]
   (let [supervisor-infos (filter #(if (nil? %) false true) (map (fn [supervisor] (if (= (:group (second supervisor)) group)
                                                                                    (second supervisor)
@@ -75,30 +95,11 @@
         total-tasks-num (reduce #(+ %1 (.size (:tasks %2))) 0 supervisor-infos)
         avg-tasks-num (if (empty? supervisor-infos)
                         0
-                        (/ total-tasks-num (.size supervisor-infos)))
-        top-tasks-num (if (= avg-tasks-num 0)
-                        5
-                        (* avg-tasks-num 1.5))
-        MAX-SCORE 100]
+                        (/ total-tasks-num (.size supervisor-infos)))]
     (if (empty? supervisor-infos)
       (do (log/error "no supervisor in group" group "is running, this task will not be run, please check...")
           nil)
-      (let [supervisors-good (filter (fn [supervisor] (let [memory-score (if-let [score (:memory-score supervisor)]
-                                                                           score
-                                                                           0)
-                                                            cpu-score (if-let [score (:cpu-score supervisor)]
-                                                                        score
-                                                                        0)
-                                                            net-bandwidth-score (if-let [score (:net-bandwidth-score supervisor)]
-                                                                                  score
-                                                                                  0)
-                                                            tasks-num (.size (:tasks supervisor))]
-                                                        (if (and (and (>= memory-score floor-score) (<= memory-score MAX-SCORE))
-                                                                 (and (>= cpu-score floor-score) (<= cpu-score MAX-SCORE))
-                                                                 (and (>= net-bandwidth-score floor-score) (<= net-bandwidth-score MAX-SCORE))
-                                                                 (<= tasks-num top-tasks-num))
-                                                          true
-                                                          false))) supervisor-infos)]
+      (let [supervisors-good (filter #(can-got-new-task? avg-tasks-num % floor-score) supervisor-infos)]
         (if (empty? supervisors-good)
           (do (log/warn "no supervisor has enough resource in group" group)
               nil)
@@ -408,11 +409,13 @@
     (reset! (:no-supervisor-num tasks-health-info) @no-supervisor-num)
     (reset! (:lost-supervisor-num tasks-health-info) @lost-supervisor-num)
     (reset! (:error-supervisor-num tasks-health-info) @error-supervisor-num)
-    (if (or (> @no-supervisor-num 0) (> @lost-supervisor-num 0) (> @error-supervisor-num 0))
-      (do
-        (log/info "assigned num:" @assigned-num)
-        (log/warn "no supervisor num:" @no-supervisor-num)
-        (log/warn "lost supervisor num:" @lost-supervisor-num)
+    (when (or (> @no-supervisor-num 0) (> @lost-supervisor-num 0) (> @error-supervisor-num 0))
+      (log/info "assigned num:" @assigned-num)
+      (when (> @no-supervisor-num 0)
+        (log/warn "no supervisor num:" @no-supervisor-num))
+      (when (> @lost-supervisor-num 0)
+        (log/warn "lost supervisor num:" @lost-supervisor-num))
+      (when (> @error-supervisor-num 0)
         (log/error "error supervisor num:" @error-supervisor-num)))))
 
 (defn supervisors-health-check
@@ -427,14 +430,33 @@
                                       false)
         (log/error "supervisor:" supervisor "hasn't yourtasks node!")
         (if-let [supervisor-info-bytes (zookeeper/get-data zk-handler (str supervisors-path "/" supervisor) false)]
-          (let [supervisor-info (json/read-str (utils/bytes->string supervisor-info-bytes)
-                                               :key-fn keyword)
-                yourtasks (set (zookeeper/get-children zk-handler (str yourtasks-path "/" supervisor) false))
-                supervisor-health-info (assoc supervisor-info :tasks yourtasks)]
+          (let [yourtasks (set (zookeeper/get-children zk-handler (str yourtasks-path "/" supervisor) false))
+                supervisor-info (assoc (json/read-str (utils/bytes->string supervisor-info-bytes)
+                                                      :key-fn keyword)
+                                       :tasks yourtasks)]
             (mount/start-with {#'supervisors-info (assoc supervisors-info
                                                          (keyword supervisor)
-                                                         supervisor-health-info)}))
-          (log/warn "NO" supervisor "in" supervisors-path))))))
+                                                         supervisor-info)}))
+          (log/warn "NO" supervisor "in" supervisors-path)))))
+  (log/info (reduce #(let [one (second %2)
+                           group (:group one)
+                           id (:id one)
+                           tasks-num (.size (:tasks one))]
+                       (if-not (contains? %1 group)
+                         (assoc %1 group {:max-id id :max-num tasks-num
+                                          :min-id id :min-num tasks-num})
+                         (let [min-id (:min-id (get %1 group))
+                               min-num (:min-num (get %1 group))
+                               max-id (:max-id (get %1 group))
+                               max-num (:max-num (get %1 group))
+                               min-data (if (< tasks-num min-num)
+                                          {:min-id id :min-num tasks-num}
+                                          {:min-id min-id :min-num min-num})
+                               max-data (if (> tasks-num max-num)
+                                          {:max-id id :max-num tasks-num}
+                                          {:max-id max-id :max-num max-num})]
+                           (assoc %1 group (conj min-data max-data)))))
+                    {} supervisors-info)))
 
 (defn launch-server! [conf]
   (let [zk-handler (zookeeper/mk-client conf (conf MAGPIE-ZOOKEEPER-SERVERS) (conf MAGPIE-ZOOKEEPER-PORT) :root (conf MAGPIE-ZOOKEEPER-ROOT))
