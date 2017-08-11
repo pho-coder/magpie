@@ -10,3 +10,4 @@ logs/
 .lein-failures
 build-jar
 bin/java
+.nrepl-port

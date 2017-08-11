@@ -57,9 +57,9 @@ function start_server() {
         fi
         MAGPIE_JMX_PARAMETERS="-Dcom.sun.management.jmxremote=true -Dcom.sun.management.jmxremote.port=${MAGPIE_JMX_PORT} -Dcom.sun.management.jmxremote.authenticate=true -Dcom.sun.management.jmxremote.access.file=${MAGPIE_JMX_ACCESS_FILE} -Dcom.sun.management.jmxremote.password.file=${MAGPIE_JMX_PASSWORD_FILE} -Dcom.sun.management.jmxremote.ssl=false"
         if ${MAGPIE_JMX_ENABLE} == true ; then
-	  nohup "$RUNNER" $MAGPIE_HEAP_OPTS ${MAGPIE_JMX_PARAMETERS} -cp "$CLASSPATH" -Djava.library.path="$MAGPIE_NATIVE_DIR" -Dmagpie.configuration="$MAGPIE_CONF_DIR" -Dlog4j.configuration=magpie.log4j.properties -Dmagpie.home="$MAGPIE_HOME" -Dmagpie.project="$MAGPIE_PROJECT" com.jd.bdp.magpie.daemon.${MAGPIE_PROJECT} "$@" > "$MAGPIE_LOG_DIR"/"$MAGPIE_PROJECT".out 2>&1 < /dev/null &
+	  nohup "$RUNNER" $MAGPIE_HEAP_OPTS ${MAGPIE_JMX_PARAMETERS} -cp "$CLASSPATH" -Djava.library.path="$MAGPIE_NATIVE_DIR" -Dmagpie.configuration="$MAGPIE_CONF_DIR" -Dlog4j.configuration=magpie.log4j.properties -Dmagpie.home="$MAGPIE_HOME" -Dmagpie.project="$MAGPIE_PROJECT" -Dmagpie.logs="$MAGPIE_LOG_DIR" com.jd.bdp.magpie.daemon.${MAGPIE_PROJECT} "$@" > "$MAGPIE_LOG_DIR"/"$MAGPIE_PROJECT".out 2>&1 < /dev/null &
         else
-	  nohup "$RUNNER" $MAGPIE_HEAP_OPTS -cp "$CLASSPATH" -Djava.library.path="$MAGPIE_NATIVE_DIR" -Dmagpie.configuration="$MAGPIE_CONF_DIR" -Dlog4j.configuration=magpie.log4j.properties -Dmagpie.home="$MAGPIE_HOME" -Dmagpie.project="$MAGPIE_PROJECT" com.jd.bdp.magpie.daemon.${MAGPIE_PROJECT} "$@" > "$MAGPIE_LOG_DIR"/"$MAGPIE_PROJECT".out 2>&1 < /dev/null &
+	  nohup "$RUNNER" $MAGPIE_HEAP_OPTS -cp "$CLASSPATH" -Djava.library.path="$MAGPIE_NATIVE_DIR" -Dmagpie.configuration="$MAGPIE_CONF_DIR" -Dlog4j.configuration=magpie.log4j.properties -Dmagpie.home="$MAGPIE_HOME" -Dmagpie.project="$MAGPIE_PROJECT" -Dmagpie.logs="$MAGPIE_LOG_DIR" com.jd.bdp.magpie.daemon.${MAGPIE_PROJECT} "$@" > "$MAGPIE_LOG_DIR"/"$MAGPIE_PROJECT".out 2>&1 < /dev/null &
         fi
         echo $! > $PID_FILE
     	chmod 755 $PID_FILE
