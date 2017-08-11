@@ -418,6 +418,40 @@
       (when (> @error-supervisor-num 0)
         (log/error "error supervisor num:" @error-supervisor-num)))))
 
+(defn get-supervisors-info []
+  (let [info (reduce #(let [one (second %2)
+                            group (:group one)
+                            id (:id one)
+                            tasks-num (.size (:tasks one))]
+                        (if-not (contains? %1 group)
+                          (assoc %1 group {:max-id id :max-num tasks-num
+                                           :min-id id :min-num tasks-num})
+                          (let [min-id (:min-id (get %1 group))
+                                min-num (:min-num (get %1 group))
+                                max-id (:max-id (get %1 group))
+                                max-num (:max-num (get %1 group))
+                                min-data (if (< tasks-num min-num)
+                                           {:min-id id :min-num tasks-num}
+                                           {:min-id min-id :min-num min-num})
+                                max-data (if (> tasks-num max-num)
+                                           {:max-id id :max-num tasks-num}
+                                           {:max-id max-id :max-num max-num})]
+                            (assoc %1 group (conj min-data max-data)))))
+                     {} supervisors-info)]
+    (reduce #(let [group (first %2)
+                   one (second %2)
+                   min-id (:min-id one)
+                   min-num (:min-num one)
+                   max-id (:max-id one)
+                   max-num (:max-num one)]
+               (str %1 "\n"
+                    "group: " group
+                    "\nmin id: " min-id
+                    " min num: " min-num
+                    "\nmax id: " max-id
+                    " max num: " max-num))
+            "\nsupervisors info:" info)))
+
 (defn supervisors-health-check
   "check supervisors pressure"
   [zk-handler]
@@ -437,26 +471,7 @@
             (mount/start-with {#'supervisors-info (assoc supervisors-info
                                                          (keyword supervisor)
                                                          supervisor-info)}))
-          (log/warn "NO" supervisor "in" supervisors-path)))))
-  (log/info (reduce #(let [one (second %2)
-                           group (:group one)
-                           id (:id one)
-                           tasks-num (.size (:tasks one))]
-                       (if-not (contains? %1 group)
-                         (assoc %1 group {:max-id id :max-num tasks-num
-                                          :min-id id :min-num tasks-num})
-                         (let [min-id (:min-id (get %1 group))
-                               min-num (:min-num (get %1 group))
-                               max-id (:max-id (get %1 group))
-                               max-num (:max-num (get %1 group))
-                               min-data (if (< tasks-num min-num)
-                                          {:min-id id :min-num tasks-num}
-                                          {:min-id min-id :min-num min-num})
-                               max-data (if (> tasks-num max-num)
-                                          {:max-id id :max-num tasks-num}
-                                          {:max-id max-id :max-num max-num})]
-                           (assoc %1 group (conj min-data max-data)))))
-                    {} supervisors-info)))
+          (log/warn "NO" supervisor "in" supervisors-path))))))
 
 (defn launch-server! [conf]
   (let [zk-handler (zookeeper/mk-client conf (conf MAGPIE-ZOOKEEPER-SERVERS) (conf MAGPIE-ZOOKEEPER-PORT) :root (conf MAGPIE-ZOOKEEPER-ROOT))
@@ -528,7 +543,8 @@
                                   (zookeeper/set-data zk-handler nimbus-node (utils/object->bytes (conj nimbus-info (utils/resources-info))))
                                   (mutils/inc-counter heartbeat-counter)
                                   (when (= (mod (mutils/read-counter heartbeat-counter) 300) 0)
-                                    (log/info "heartbeat counts:" (mutils/read-counter heartbeat-counter)))
+                                    (log/info "heartbeat counts:" (mutils/read-counter heartbeat-counter))
+                                    (log/info (get-supervisors-info)))
                                   (catch Exception e
                                     (log/error e "error accurs in nimbus heartbeat timer")
                                     (System/exit -1)))))
