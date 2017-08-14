@@ -425,7 +425,8 @@
                             tasks-num (.size (:tasks one))]
                         (if-not (contains? %1 group)
                           (assoc %1 group {:max-id id :max-num tasks-num
-                                           :min-id id :min-num tasks-num})
+                                           :min-id id :min-num tasks-num
+                                           :supervisors-num 1})
                           (let [min-id (:min-id (get %1 group))
                                 min-num (:min-num (get %1 group))
                                 max-id (:max-id (get %1 group))
@@ -435,17 +436,20 @@
                                            {:min-id min-id :min-num min-num})
                                 max-data (if (> tasks-num max-num)
                                            {:max-id id :max-num tasks-num}
-                                           {:max-id max-id :max-num max-num})]
-                            (assoc %1 group (conj min-data max-data)))))
+                                           {:max-id max-id :max-num max-num})
+                                supervisors-num (:supervisors-num (get %1 group))]
+                            (assoc %1 group (conj min-data max-data {:supervisors-num (inc supervisors-num)})))))
                      {} supervisors-info)]
     (reduce #(let [group (first %2)
                    one (second %2)
                    min-id (:min-id one)
                    min-num (:min-num one)
                    max-id (:max-id one)
-                   max-num (:max-num one)]
+                   max-num (:max-num one)
+                   supervisors-num (:supervisors-num one)]
                (str %1 "\n"
                     "group: " group
+                    " supervisors num: " supervisors-num
                     "\nmin id: " min-id
                     " min num: " min-num
                     "\nmax id: " max-id

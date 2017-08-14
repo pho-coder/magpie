@@ -1,4 +1,4 @@
-(defproject magpie "2.2.20170811-SNAPSHOT"
+(defproject magpie "2.2.20170814-SNAPSHOT"
   :description "FIXME: write description"
   :url "http://example.com/FIXME"
   :license {:name "Eclipse Public License"
