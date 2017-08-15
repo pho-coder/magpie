@@ -449,11 +449,11 @@
                    supervisors-num (:supervisors-num one)]
                (str %1 "\n"
                     "group: " group
-                    " supervisors num: " supervisors-num
+                    "\tsupervisors num: " supervisors-num
                     "\nmin id: " min-id
-                    " min num: " min-num
+                    "\tmin num: " min-num
                     "\nmax id: " max-id
-                    " max num: " max-num))
+                    "\tmax num: " max-num))
             "\nsupervisors info:" info)))
 
 (defn supervisors-health-check
